@@ -64,14 +64,15 @@ runs:
       id: branch
       shell: bash
       run: |
+        set -e
         SIGNATURE_SLUG=$(echo "${{ inputs.signature }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/-+/-/g')
         BRANCH_NAME="crash-fix/${SIGNATURE_SLUG}-${{ github.run_id }}"
-        git checkout -b "$BRANCH_NAME"
-        echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        git checkout -b "$BRANCH_NAME" || exit 1
+        echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT || exit 1
 
     - name: Install agent CLI
       shell: bash
-      run: bash action/agents/${{ inputs.agent }}/install.sh
+      run: bash action/agents/${{ inputs.agent }}/install.sh || exit 1
 
     - name: Build prompt
       shell: bash
@@ -84,43 +85,75 @@ runs:
         DEVICE_INFO: ${{ inputs.device-info }}
         OCCURRENCE_COUNT: ${{ inputs.occurrence-count }}
         CREATE_TIME: ${{ inputs.create-time }}
-      run: bash action/build-prompt.sh
+      run: bash action/build-prompt.sh || exit 1
 
     - name: Run agent
       shell: bash
       env:
         AGENT_API_KEY: ${{ inputs.api-key }}
-      run: bash action/agents/${{ inputs.agent }}/run.sh /tmp/crash-fix-prompt.txt /tmp/agent-output.txt
+      run: bash action/agents/${{ inputs.agent }}/run.sh /tmp/crash-fix-prompt.txt /tmp/agent-output.txt || exit 1
 
     - name: Commit changes
       shell: bash
       run: |
-        git config user.email "crash-fix-action@github.com"
-        git config user.name "Crash Fix Action"
+        set -e
+        git config user.email "crash-fix-action@github.com" || exit 1
+        git config user.name "Crash Fix Action" || exit 1
         if git diff --quiet; then
           echo "No changes detected. Failing run."
           exit 1
         fi
-        git add -A
-        git commit -m "Fix crash: ${{ inputs.signature }}"
+        git add -A || exit 1
+        git commit -m "Fix crash: ${{ inputs.signature }}" || exit 1
 
     - name: Push branch
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
-        git push origin ${{ steps.branch.outputs.branch-name }}
+        set -e
+        git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git || exit 1
+        git push origin ${{ steps.branch.outputs.branch-name }} || exit 1
 
     - name: Open PR
       id: open-pr
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        CRASH_ID: ${{ inputs.crash-id }}
+        SIGNATURE: ${{ inputs.signature }}
+        APP_VERSION: ${{ inputs.app-version }}
+        STACK_TRACE: ${{ inputs.stack-trace }}
+        DEVICE_INFO: ${{ inputs.device-info }}
       run: |
-        AGENT_OUTPUT=$(cat /tmp/agent-output.txt)
-        PR_BODY=$(cat action/pr-body-template.md | sed "s|{{SIGNATURE}}|${{ inputs.signature }}|g; s|{{STACK_TRACE}}|${{ inputs.stack-trace }}|g; s|{{APP_VERSION}}|${{ inputs.app-version }}|g; s|{{AGENT_OUTPUT}}|$AGENT_OUTPUT|g")
-        PR_URL=$(gh pr create --title "Fix crash: ${{ inputs.signature }}" --body "$PR_BODY" --base ${{ inputs.base-branch }} 2>&1 | grep "https://github.com")
-        PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-        echo "pr-url=$PR_URL" >> $GITHUB_OUTPUT
-        echo "pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT
+        set -e
+
+        # Read agent output
+        AGENT_OUTPUT=$(cat /tmp/agent-output.txt) || exit 1
+
+        # Create PR body by substituting placeholders in template
+        PR_BODY_FILE="/tmp/pr-body.md"
+        cat action/pr-body-template.md > "$PR_BODY_FILE" || exit 1
+
+        # Use environment variables for safe substitution
+        sed -i "s|{{SIGNATURE}}|${SIGNATURE}|g" "$PR_BODY_FILE"
+        sed -i "s|{{CRASH_ID}}|${CRASH_ID}|g" "$PR_BODY_FILE"
+        sed -i "s|{{APP_VERSION}}|${APP_VERSION}|g" "$PR_BODY_FILE"
+        sed -i "s|{{DEVICE_INFO}}|${DEVICE_INFO}|g" "$PR_BODY_FILE"
+        sed -i "s|{{STACK_TRACE}}|${STACK_TRACE}|g" "$PR_BODY_FILE"
+        sed -i "s|{{AGENT_OUTPUT}}|${AGENT_OUTPUT}|g" "$PR_BODY_FILE"
+
+        # Create PR and capture output
+        PR_OUTPUT=$(gh pr create --title "Fix crash: ${SIGNATURE}" --body-file "$PR_BODY_FILE" --base ${{ inputs.base-branch }} 2>&1) || exit 1
+
+        # Extract PR URL and number
+        PR_URL=$(echo "$PR_OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' || echo "")
+        PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$' || echo "")
+
+        if [ -z "$PR_URL" ] || [ -z "$PR_NUMBER" ]; then
+          echo "ERROR: Failed to extract PR URL or number from: $PR_OUTPUT"
+          exit 1
+        fi
+
+        echo "pr-url=$PR_URL" >> $GITHUB_OUTPUT || exit 1
+        echo "pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT || exit 1
