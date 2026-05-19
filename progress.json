@@ -87,10 +87,10 @@
       "id": 10,
       "step": "Task 8: Scaffolded Agents (aider, codex, gemini)",
       "type": "work",
-      "status": "pending",
+      "status": "completed",
       "tier": "cheap",
       "commit": "",
-      "notes": ""
+      "notes": "Scaffolded agent implementations for aider, codex, gemini completed. Each agent has install.sh with pip package installation and exponential backoff retry logic (max 3 retries). Each agent has run.sh that maps AGENT_API_KEY to provider-specific env vars (OPENAI_API_KEY for aider/codex, GEMINI_API_KEY for gemini), reads /tmp/crash-fix-prompt.txt, and writes /tmp/crash-fix-output.txt. All agents run non-interactively with proper error handling. Aider uses CLI invocation (aider --no-auto-commits --no-git). Codex and Gemini use Python wrappers invoking OpenAI and Google Generative AI APIs respectively. Test suite created (test-agents.sh) with 10 test categories covering script existence, executability, shebangs, error handling, missing file/API key detection, retry logic, and I/O path consistency."
     },
     {
       "id": 11,
