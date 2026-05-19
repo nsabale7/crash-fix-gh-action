@@ -1,196 +1,143 @@
-# SP-1 Crash Auto-Fix GitHub Action � Plan Review
+# Plan Review — SP-1 Crash Auto-Fix GitHub Action
 
 **Reviewer:** gh-rev
 **Date:** 2026-05-19
-**Verdict:** CHANGES NEEDED
+**Documents reviewed:** PLAN.md, requirements.md, design.md
 
-## Checklist
+---
+
+## Checkpoint Results
 
 ### 1. Clear done criteria for each task
-**Status:** PASS with caveats
+**PASS**
 
-**Narrative:** All seven tasks have explicit "Done criteria" sections that are testable and observable. However, there is a critical gap: the riskiest assumption (Claude Code CLI non-interactive support) is identified in the narrative but NOT explicitly included in T-1's done criteria. T-1 says validate this "by reading the CLI docs" and "run a smoke test in a local Docker container before writing T-3 code," but the actual done criteria only mentions `action.yml` validation and directory skeleton. **ACTION REQUIRED:** Add to T-1 done criteria: "Smoke test confirms Claude Code CLI accepts `--print` flag or equivalent on headless runner; test run produces non-empty output without interactive prompt."
-
-Similarly, T-3 assumes `claude --print <  > ` works, but the done criteria doesn't mandate testing this exact invocation. **ACTION REQUIRED:** Add to T-3 done criteria: "Successful non-TTY run verified using `act` with --print flag."
+Every task (T-1 through T-7) has explicit, binary done criteria. T-1 requires `actionlint` to pass and inputs/outputs to match FR-1/FR-4. T-2 lists concrete BATS test scenarios (each required field missing individually → exit 1, stack-trace >50 KB → truncated, happy path). T-3 requires headless operation confirmed inside `act`. T-4, T-5, T-6, and T-7 all have measurable, tool-verifiable criteria. No task ends with "it works" or "developer is satisfied."
 
 ---
 
-### 2. Riskiest assumption in Task 1
-**Status:** PASS
+### 2. Riskiest assumption identified in Task 1
+**PASS**
 
-**Narrative:** The plan explicitly identifies the riskiest assumption: "Claude Code CLI non-interactive mode � the entire T-3 implementation depends on the CLI supporting a headless, non-TTY invocation." This is correct; if the CLI requires TTY or interactive confirmation, T-3 code becomes invalid. The mitigation is stated: validate before T-3 begins. However, see issue #1 above � this validation is not reflected in the done criteria for T-1.
-
----
-
-### 3. Cohesion of tasks
-**Status:** PASS
-
-**Narrative:** Tasks flow logically: scaffold (T-1) ? validate/prompt (T-2) ? agent installs/runs (T-3/T-4) ? branch/commit/PR (T-5/T-6) ? E2E test (T-7). Each task adds a layer of functionality. No orphaned or misaligned tasks.
+T-1 explicitly names the riskiest assumption: "The Claude Code CLI supports a fully non-interactive mode (`--print` or equivalent) that works on a headless runner." It mandates validation before T-3 begins. The standalone "Riskiest Assumption" section at the bottom of PLAN.md reinforces this with an explicit fallback path (use `expect` or API call if CLI requires TTY). The assumption is correctly front-loaded rather than discovered mid-sprint.
 
 ---
 
-### 4. Coupling and dependencies
-**Status:** PASS
+### 3. Cohesion of tasks (do they fit together?)
+**PASS**
 
-**Narrative:** Dependencies are clearly documented in a DAG. T-1 is the entry point; T-2 depends on T-1; T-3 and T-4 depend on T-1 and (for T-3) T-2; T-5 waits for T-3 and T-4; T-6 waits for T-5; T-7 waits for T-6. The plan correctly notes that T-4 stubs are independent and do not block the Claude path. No circular dependencies or missing links detected.
+The task sequence maps cleanly onto the data flow in design.md: scaffold (T-1) → validator + prompt builder (T-2) → Claude agent (T-3) → stubs (T-4, parallel) → branch + commit (T-5) → PR (T-6) → E2E (T-7). Each task produces an artifact consumed by the next. There are no orphaned tasks and no gaps in the chain from "source files" to "PR opened."
+
+---
+
+### 4. Coupling issues (are dependencies clear?)
+**PASS with minor note**
+
+All task dependencies are stated in-line and in the dependency graph. The graph correctly shows T-4 (stubs) must complete before T-5 alongside T-3. Minor note: in practice T-5 only consumes the Claude path at runtime — T-4 stubs do not affect T-5's data flow. Making T-4 a hard gate on T-5 is conservative but not harmful. The rationale ("agent seam fully defined") is stated, which is sufficient for planning purposes.
 
 ---
 
 ### 5. Session-completable tasks
-**Status:** PASS with note
+**PASS with note on T-7**
 
-**Narrative:** Each task explicitly scopes to =4 hours, which is reasonable. However, T-1 includes reading docs + running a smoke test + creating directory structure � this could be tight depending on CLI documentation depth. T-7 (E2E test with live ANTHROPIC_API_KEY) is described as out-of-scope for the CI loop, which is wise; it's a manual release gate. No task appears unreasonably long or dependent on unpredictable events.
+T-1 through T-6 are each scoped to self-contained shell script work and test authoring, well within the stated ≤4-hour bound. T-7 requires a dedicated external test repository (`crash-fix-e2e-target`) that must be set up before the test can run. If that repo does not already exist, T-7's session begins with repository creation, secret provisioning, and workflow installation — work not surfaced in the task description. T-7 should note "test repo pre-exists with workflow installed" as a precondition, or split setup from execution.
 
 ---
 
-### 6. Vague or underspecified task descriptions
-**Status:** PASS with minor caveats
+### 6. Vague task descriptions
+**PASS with note on T-7 setup**
 
-**Narrative:** Most tasks are well-specified. Two minor gaps:
-
-- **T-2 prompt builder:** The plan says "structured markdown prompt" but does not show a template or example. What is the exact format? How are optional fields (stack-trace, device-info, etc.) formatted if absent? Recommend: add a template snippet or reference to `action/pr-template.md` structure in the done criteria.
-
-- **T-5 branch naming:** Branch name format `crash-fix/<signature>-<run-id>` is clear, but how is `<run-id>` generated? From ``? From a hash of the crash signature? Recommend: specify the run-id source explicitly.
-
-- **T-6 PR body:** The plan references `action/pr-template.md` and says it includes all required fields, but the template itself is not shown in the design. Recommend: add or reference the template in the design.
-
-Overall, tasks are clear enough to begin work; these are refinements, not blockers.
+T-1 through T-6 are specific: named files, concrete shell script behavior, referenced schema files. T-7's description says "a dedicated test repository with a simple app containing a known crash signature" but does not specify what that app is, who creates it, or how `ANTHROPIC_API_KEY` is provisioned in that repo's secrets. This is minor for an internal team but should be tightened before assigning T-7 to a developer unfamiliar with the setup.
 
 ---
 
 ### 7. Alignment with requirements.md
-**Status:** PASS
+**PASS with gaps on NFR-1 and NFR-4**
 
-**Narrative:** Spot-check of major functional requirements:
-- FR-1 (crash payload ingestion): ? T-1 (action.yml inputs) + T-2 (validate.sh)
-- FR-2 (branch creation): ? T-5 (branch.sh)
-- FR-3 (Claude agent invocation): ? T-3 (claude/install.sh + run.sh)
-- FR-4 (PR creation): ? T-6 (open-pr.sh)
-- FR-5 (multi-agent stubs): ? T-4 (aider/codex/gemini stubs)
-- FR-6 (empty-diff failure): ? T-6 (commit.sh checks git diff --exit-code)
-- FR-7 (PR content): ? T-6 (pr-template.md)
-- FR-8 (no direct default-branch pushes): ? Structural guarantee via composite action and `gh pr create`
+FR-1 through FR-8 all have clear task owners:
 
-NFR-1 (reliability, retries): ? Mentioned in design but not explicit in T-1 done criteria. Recommend: add "install.sh retries transient network failures at least once."
+- FR-1 → T-1 (inputs in action.yml) + T-2 (validate.sh)
+- FR-2 → T-5 (branch.sh)
+- FR-3 → T-3 (run.sh)
+- FR-4 → T-6 (open-pr.sh, outputs)
+- FR-5 → T-4 (stubs)
+- FR-6 → T-5 (commit.sh empty-diff check)
+- FR-7 → T-6 (pr-template.md)
+- FR-8 → T-5 + T-6 (structural PR-only flow)
 
-NFR-2 (secret handling): ? T-2/T-3 must not log `AGENT_API_KEY`; Risk R-3 acknowledges this. Recommend: add specific log-scan CI check to the testing strategy.
+**Gaps:**
 
-NFR-3 (extensibility): ? T-4 demonstrates this; adding a new agent requires only T-4-style stubs.
-
-NFR-4 (observability): ? Each task uses GitHub Actions step summary or logging; T-7 verifies no secrets leak.
-
-**No alignment gaps detected.**
+- **NFR-1 (retry on transient failure):** requirements.md requires at least one retry on transient network failures during agent install. No task has a done criterion covering retry logic in install.sh. This is unimplemented and must be addressed.
+- **NFR-4 (per-step observability):** requirements.md requires each major step to emit a distinct log line or step summary. Only T-6's done criteria mention step summary (`pr-url`). The other five steps have no observability criterion in their done criteria.
 
 ---
 
 ### 8. Alignment with design.md
-**Status:** PASS
+**FAIL**
 
-**Narrative:** The design provides a detailed architecture, data flow, agent seam contract, and risk register. The plan tasks map to design components:
-- T-1 scaffold: `action.yml`, `action/crash-payload-schema.json`, directory structure ?
-- T-2 validate/prompt: `validate.sh`, `build-prompt.sh` ?
-- T-3/T-4 agents: `action/agents/claude/*`, stubs ?
-- T-5/T-6 branch/PR: `branch.sh`, `commit.sh`, `open-pr.sh`, `pr-template.md` ?
-- T-7 E2E: Covered by integration/E2E test strategy ?
+The architecture diagram in design.md includes `.github/workflows/ci.yml` (lint + unit tests on PRs). T-4's done criteria state "CI (actionlint + BATS) is green" — implying CI is already running. Yet no task is assigned to create `ci.yml`. This is a missing deliverable: the ci.yml file appears in the design and is referenced in done criteria, but has no task that creates it. A task (or an addition to T-1) must own the creation of ci.yml with a done criterion of "ci.yml runs actionlint and BATS on all PRs."
 
-The agent seam contract (environment vars, exit codes, install.sh semantics) is documented in the design and referenced in T-3/T-4. One gap: the design says agent exit code `1` means "ran but produced no changes" (pre-empts commit.sh), but the plan does not explicitly state whether T-3 run.sh must return exit code 1 on no changes or if commit.sh is solely responsible. Recommend: clarify in T-3 done criteria or T-5 seam contract.
-
-**One alignment gap:** Design mentions T-7 includes a "log-scan CI job" to grep for key prefixes, but the plan does not list this as a deliverable or task. Is this part of the `ci.yml` setup? Recommend: clarify ownership.
+Additionally, design.md's R-3 mitigation describes a "log-scan CI job that greps for known key prefixes (`sk-ant-`, `sk-`, etc.) in captured output." This job does not appear in the testing strategy section or in any task's done criteria.
 
 ---
 
 ### 9. Risk register completeness
-**Status:** PASS
+**PASS**
 
-**Narrative:** Design includes a 5-item risk register:
-- R-1: CLI version drift (mitigation: pin version)
-- R-2: Agent produces breaking diff (mitigation: human review before merge)
-- R-3: API key leaks into logs (mitigation: GitHub Actions masking + log-scan CI)
-- R-4: Stack trace input size (mitigation: truncate to 50 KB)
-- R-5: gh CLI missing/outdated (mitigation: version assertion)
-
-All risks are reasonable for a v1 GitHub Action. R-2 is acknowledged as out-of-scope (consumer repo CI is the safety net), which is pragmatic.
-
-**One gap:** The plan does not mention what happens if the target repo's branch protection rules prevent pushing a new branch, or if PR creation fails due to permission or rule violations. These should be documented as expected failure modes (FR-8 guarantees this is not a bug) and reflected in task done criteria (e.g., "branch.sh fails gracefully if branch already exists; open-pr.sh fails gracefully if gh pr create fails").
-
-**Additional consideration:** The plan does not address what happens if the base-branch is deleted or renamed between branch creation (T-5) and PR creation (T-6). Unlikely but possible; out of scope for v1, but worth noting.
+Five risks cover the most critical failure modes: CLI API instability (R-1), agent-produced breaking changes (R-2), secret leakage via debug output (R-3), oversized stack traces (R-4), and missing `gh` CLI (R-5). Each entry has likelihood, impact, and a concrete mitigation. Two omissions are acceptable for v1 but worth noting: (a) concurrent crash dispatches producing race conditions on branch naming, and (b) agent run time exceeding GitHub Actions job timeout limits. Neither is a blocker for this plan.
 
 ---
 
 ### 10. Testing strategy coverage
-**Status:** PASS
+**PASS with gap on log-scan**
 
-**Narrative:** The design specifies three tiers:
-1. **Unit tests (BATS):** Scripts tested in isolation with mocks. Covers missing fields, empty diff, happy path.
-2. **Integration tests (act):** Full composite action locally against a throwaway test repo. Verifies branch name, PR body, outputs, no base-branch push.
-3. **E2E tests (real workflow_dispatch):** Against a dedicated test repo with real ANTHROPIC_API_KEY. Manual release gate.
+Three-tier strategy (BATS unit, `act` integration, real E2E) is appropriate for a composite action. BATS covers validate.sh, build-prompt.sh, and commit.sh. Integration covers branch naming, PR body, and output correctness. E2E covers the full live flow.
 
-This is comprehensive and appropriate for a GitHub Action. The plan correctly defers E2E to a manual gate due to cost/latency.
+**Gap:** The log-scan CI job mentioned in R-3's mitigation is absent from the testing strategy section and from all task done criteria. If secret leakage is rated Critical (as noted in R-3), the log-scan job must appear in the testing strategy and have an owning task.
 
-**Gap:** The plan does not specify BATS coverage percentage or which scripts are tested. Recommend: add to CI config (ci.yml) or T-1 done criteria that unit test coverage is =80% for each script.
-
-**Additional:** T-7 mentions "log-scan CI job" but does not detail what patterns are grepped. Recommend: define list of secret prefixes to detect (e.g., `sk-ant-`, `ghp_`, etc.) and add to ci.yml or T-7 done criteria.
+**Minor gap:** open-pr.sh is not explicitly covered by unit or integration tests in a way that exercises the actual `gh pr create` invocation. The integration test uses a mock agent but does not clarify whether it exercises the real `gh` CLI against GitHub or a mock. This should be clarified.
 
 ---
 
 ### 11. Success metrics clarity
-**Status:** PASS
+**PASS**
 
-**Narrative:** Plan defines clear success metrics:
-- All tasks T-1 through T-7 marked done ?
-- E2E test passes: PR opened, branch named correctly, no push to main ?
-- No secrets leaked (verified by log-scan in T-7) ?
-- actionlint and BATS tests green on final commit ?
-
-These are measurable and objective. No ambiguity.
+Four metrics are stated: all tasks done, E2E test passes (with three sub-criteria), no secrets leaked (log-scan in T-7), actionlint + BATS green. All four are measurable at task completion. The metrics are sufficient to declare "SP-1 is done" without ambiguity.
 
 ---
 
 ### 12. Feasibility given constraints
-**Status:** PASS with considerations
+**PASS**
 
-**Narrative:** Constraints are:
-- Each task =4 hours: ? Reasonable scopes
-- No Docker images required for v1: ? Composite action + runtime install
-- Agent stubs do not block T-5/T-6/T-7: ? Independence documented
-- All work targets ubuntu-latest: ? Specified
-
-**Feasibility assessment:** The plan is feasible IF the riskiest assumption (Claude Code CLI non-interactive mode) is validated in T-1. If that validation fails, T-3 needs a major redesign (e.g., using the Claude API instead of CLI). This is a binary gate; mitigated by the plan's explicit call-out of the risk.
-
-**Time estimate check:** T-1 through T-4 (scaffold + validators + agent stubs) appear to be 1�2 days. T-5 through T-6 (branch/commit/PR logic) are 1 day. T-7 (E2E test) is 1 day. Rough total: 4�5 working days, which fits a single sprint.
+Composite action avoids Docker build overhead. ubuntu-latest ships `gh`, `git`, and `npm` — no custom runner setup required. BATS is a widely-used shell testing framework with npm-installable setup. The agent seam (file-system dispatch) is straightforward to implement and test. The only open feasibility question is the Claude Code CLI's non-interactive flag — correctly identified as the riskiest assumption and gated in T-1.
 
 ---
 
 ## Summary
 
-### What Passed
+### What passed (10/12)
 
-- **Task structure and dependencies:** Clear, logical flow with no circular deps.
-- **Requirements alignment:** All 8 functional and 4 non-functional requirements have corresponding tasks.
-- **Design alignment:** Architecture, data flow, and agent seam contract are well-specified.
-- **Risk identification:** Riskiest assumption called out; risk register addresses plausible failure modes.
-- **Testing strategy:** Three-tier approach (unit/integration/E2E) is appropriate.
-- **Feasibility:** Realistic scope and session times given constraints.
+Checkpoints 1, 2, 3, 4, 5, 6, 9, 11, 12 are solid. Done criteria are specific and binary across all tasks. The riskiest assumption is correctly front-loaded. Task cohesion and dependency documentation are clear. The risk register and success metrics are actionable.
 
-### What Must Change
+Checkpoint 7 passes with minor gaps (NFR-1 retry, NFR-4 observability per step) that are addressable within existing tasks by adding done criteria.
 
-1. **T-1 done criteria MUST explicitly validate Claude Code CLI non-interactive mode.** Current done criteria does not include smoke test; this is the gate for T-3. Add: "Smoke test run in headless sandbox confirms CLI accepts non-interactive input/output (e.g., --print flag or stdin/stdout) without TTY requirement."
+Checkpoint 10 passes with a noted gap (log-scan test coverage) that should be addressed.
 
-2. **T-3 done criteria MUST verify the exact invocation pattern works.** Add: "BATS test confirms `claude --print < \ > \` succeeds in non-TTY environment (simulated via act)."
+### What must change (required before implementation begins)
 
-3. **Clarify T-5/T-6 failure modes.** Add to done criteria: "Branch.sh fails gracefully if branch already exists (exit 1 with clear message); open-pr.sh fails gracefully if gh pr create fails (exit 1 with error message); in both cases, no orphaned branches or partial PRs are left behind."
+1. **Add a task (or extend T-1) to create `ci.yml`** — Checkpoint 8 FAIL. The CI workflow is referenced in done criteria (T-4) but has no owning task. Done criterion: "ci.yml runs actionlint and BATS on all PRs; pipeline is green before T-2 begins."
 
-4. **Define prompt template format and handling of optional fields.** T-2 done criteria should specify: "Prompt file includes all provided fields in Markdown format; optional fields (stack-trace, device-info, etc.) are omitted if not provided; prompt is human-readable and instructs the agent to limit edits to crash-related files."
+2. **Add NFR-1 retry logic to T-3's done criteria** — Checkpoint 7 gap. install.sh must retry on transient network failure; this must be a testable, binary criterion in T-3.
 
-5. **Specify run-id generation.** T-5 should clarify: "Branch name run-id component is derived from \ or a deterministic hash of signature + timestamp (specify choice)."
+3. **Add log-scan coverage to testing strategy and assign it to a task** — Checkpoints 7 and 10 gap. R-3 names a log-scan CI job as Critical mitigation — it needs an owning task and must appear explicitly in the testing strategy section.
 
-6. **Add secret masking and log-scan to CI.** Update ci.yml specification or T-1 done criteria to include: "GitHub Actions secret-masking step before agent run; post-run log-scan greps for API key patterns (sk-ant-, ghp_, etc.) and fails job if found."
+4. **Clarify T-7 preconditions** — Checkpoint 5 note. State whether the test repo exists or must be created as part of T-7. If created, add setup to done criteria or split into a T-6.5 setup task.
 
-### What Is Deferred
+### What is deferred (acceptable for v1)
 
-- E2E test (T-7) with real ANTHROPIC_API_KEY is a manual gate, not automated CI. ? Correct for v1.
-- R-2 (agent produces breaking diff) is mitigated by human review on consumer repo. ? Appropriate out-of-scope deferral.
-- T-1 smoke test may use local Docker; `act` setup is separate. ? Reasonable separation of concerns.
+- Concurrency/race condition risk on branch naming — document as known limitation.
+- Agent job timeout risk — document recommended timeout setting in README.
+- Performance metrics (time-to-PR) — not required for v1.
+- open-pr.sh mock coverage in integration tests — acceptable if integration tests use the real `gh` CLI against GitHub.
 
 ---
 
@@ -198,11 +145,4 @@ These are measurable and objective. No ambiguity.
 
 **CHANGES NEEDED**
 
-The plan is well-structured and feasible, but has a critical gap: the riskiest assumption (CLI non-interactive mode) is identified but not validated in the done criteria. Additionally, several task specifications need clarification on failure handling, optional field treatment, and secret masking. These are not blockers but must be resolved before execution begins. Recommend:
-
-1. Update T-1, T-3, and T-5 done criteria per above.
-2. Add secret masking and log-scan CI check to T-1 or ci.yml spec.
-3. Add prompt template example or reference.
-4. Clarify branch run-id generation.
-
-Once these clarifications are made, the plan is ready to execute.
+The plan is well-structured and largely complete. One hard blocker: `ci.yml` has no owning task despite being referenced in done criteria — this must be resolved before implementation starts. Three additional changes (NFR-1 retry criterion, log-scan task, T-7 preconditions) are required but can be resolved quickly. No architectural concerns; the design is sound and the agent seam approach is the right call.
