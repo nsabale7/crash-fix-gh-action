@@ -1,0 +1,83 @@
+name: Crash auto-fix (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      crash-id:
+        description: Unique crash issue id
+        required: true
+        type: string
+      signature:
+        description: Exception class / crash title
+        required: true
+        type: string
+      subtitle:
+        description: First line of stack trace summary
+        required: false
+        type: string
+      app-version:
+        description: App version at time of crash
+        required: true
+        type: string
+      stack-trace:
+        description: Full stack trace text
+        required: false
+        type: string
+      device-info:
+        description: Device make/model + OS version
+        required: false
+        type: string
+      occurrence-count:
+        description: Number of users hit
+        required: false
+        type: number
+      create-time:
+        description: ISO 8601 timestamp
+        required: true
+        type: string
+      agent:
+        description: Coding agent to invoke (claude, aider, codex, gemini)
+        required: false
+        type: string
+        default: claude
+      base-branch:
+        description: Branch to fork from and target the PR at
+        required: false
+        type: string
+        default: main
+      api-key:
+        description: Provider API key (masked)
+        required: true
+        type: string
+      github-token:
+        description: GitHub token for pushing branch and opening PR (masked)
+        required: true
+        type: string
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pr-url: ${{ steps.action.outputs.pr-url }}
+      pr-number: ${{ steps.action.outputs.pr-number }}
+      branch: ${{ steps.action.outputs.branch }}
+    steps:
+      - name: Run crash-fix action
+        id: action
+        uses: ./
+        with:
+          crash-id: ${{ inputs.crash-id }}
+          signature: ${{ inputs.signature }}
+          subtitle: ${{ inputs.subtitle }}
+          app-version: ${{ inputs.app-version }}
+          stack-trace: ${{ inputs.stack-trace }}
+          device-info: ${{ inputs.device-info }}
+          occurrence-count: ${{ inputs.occurrence-count }}
+          create-time: ${{ inputs.create-time }}
+          agent: ${{ inputs.agent }}
+          base-branch: ${{ inputs.base-branch }}
+          api-key: ${{ inputs.api-key }}
+          github-token: ${{ inputs.github-token }}
