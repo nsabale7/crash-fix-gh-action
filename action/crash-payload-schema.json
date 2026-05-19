@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Crash Payload Schema",
+  "description": "Schema for crash payloads sent to the crash-fix-gh-action",
+  "type": "object",
+  "properties": {
+    "crash_id": {
+      "type": "string",
+      "description": "Unique Crashlytics issue id"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Exception class / crash title"
+    },
+    "subtitle": {
+      "type": "string",
+      "description": "First line of stack trace summary"
+    },
+    "app_version": {
+      "type": "string",
+      "description": "App version at time of crash"
+    },
+    "stack_trace": {
+      "type": "string",
+      "description": "Full stack trace text"
+    },
+    "device_info": {
+      "type": "string",
+      "description": "Device make/model + Android version"
+    },
+    "occurrence_count": {
+      "type": "integer",
+      "description": "How many users hit this"
+    },
+    "create_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    }
+  },
+  "required": ["crash_id", "signature", "app_version", "create_time"]
+}

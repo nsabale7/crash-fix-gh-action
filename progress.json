@@ -1,0 +1,147 @@
+{
+  "project": "gh-action-fix",
+  "plan_file": "PLAN.md",
+  "branch": "sprint/crash-fix-action-v1",
+  "created": "2026-05-19",
+  "tasks": [
+    {
+      "id": 1,
+      "step": "Task 1: Repository Setup, CI Workflow & Claude Agent Integration",
+      "type": "work",
+      "status": "pending",
+      "tier": "standard",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 2,
+      "step": "Task 2: Action Scaffolding & Input Handling",
+      "type": "work",
+      "status": "pending",
+      "tier": "standard",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 3,
+      "step": "Task 3: Composite Action Workflow",
+      "type": "work",
+      "status": "pending",
+      "tier": "standard",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 4,
+      "step": "VERIFY: Foundation",
+      "type": "verify",
+      "status": "pending",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 5,
+      "step": "Task 4: workflow_dispatch Trigger Template",
+      "type": "work",
+      "status": "pending",
+      "tier": "cheap",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 6,
+      "step": "Task 5: repository_dispatch Trigger Template & Branch Naming",
+      "type": "work",
+      "status": "pending",
+      "tier": "cheap",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 7,
+      "step": "Task 6: Documentation — README",
+      "type": "work",
+      "status": "pending",
+      "tier": "cheap",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 8,
+      "step": "VERIFY: Integration",
+      "type": "verify",
+      "status": "pending",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 9,
+      "step": "Task 7: Security & Secrets Audit",
+      "type": "work",
+      "status": "pending",
+      "tier": "premium",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 10,
+      "step": "Task 8: Scaffolded Agents (aider, codex, gemini)",
+      "type": "work",
+      "status": "pending",
+      "tier": "cheap",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 11,
+      "step": "VERIFY: Security & Scaffolding",
+      "type": "verify",
+      "status": "pending",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 12,
+      "step": "Task 8.5: E2E Test Repository Setup",
+      "type": "work",
+      "status": "pending",
+      "tier": "cheap",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 13,
+      "step": "Task 9: Architecture & Design Documentation",
+      "type": "work",
+      "status": "pending",
+      "tier": "standard",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 14,
+      "step": "VERIFY: Docs Harvest",
+      "type": "verify",
+      "status": "pending",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 15,
+      "step": "Task 10: E2E Integration Test",
+      "type": "work",
+      "status": "pending",
+      "tier": "cheap",
+      "commit": "",
+      "notes": ""
+    },
+    {
+      "id": 16,
+      "step": "VERIFY: E2E & Completion",
+      "type": "verify",
+      "status": "pending",
+      "commit": "",
+      "notes": ""
+    }
+  ]
+}
