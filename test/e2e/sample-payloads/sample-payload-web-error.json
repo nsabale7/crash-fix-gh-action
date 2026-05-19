@@ -1,0 +1,10 @@
+{
+  "crash_id": "sentry-e2e-web-error-001",
+  "signature": "ReferenceError: data is not defined in app.processPayload",
+  "subtitle": "Undefined variable reference in data processing function",
+  "app_version": "1.5.2",
+  "stack_trace": "ReferenceError: data is not defined\n    at processPayload (http://localhost:3000/app.js:42:15)\n    at Object.handleResponse (http://localhost:3000/app.js:105:8)\n    at XMLHttpRequest.onload (http://localhost:3000/app.js:78:12)\n\nNote: Additional stack from promise rejection handling:\nError: ReferenceError: data is not defined\n    at processPayload (app.js:42)\n    at async initializeApp (app.js:150)\n    at async main (app.js:200)",
+  "device_info": "Chrome 114.0.0.0 on Windows 10",
+  "occurrence_count": 127,
+  "create_time": "2025-05-19T09:45:00Z"
+}
