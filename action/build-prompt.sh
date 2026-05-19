@@ -10,7 +10,9 @@ cat > "$PROMPT_FILE" << 'PROMPT_END'
 ## Crash Information
 PROMPT_END
 
+[ -n "$CRASH_ID" ] && echo "**Issue ID:** $CRASH_ID" >> "$PROMPT_FILE"
 [ -n "$SIGNATURE" ] && echo "**Signature:** $SIGNATURE" >> "$PROMPT_FILE"
+[ -n "$SUBTITLE" ] && echo "**Summary:** $SUBTITLE" >> "$PROMPT_FILE"
 [ -n "$APP_VERSION" ] && echo "**App Version:** $APP_VERSION" >> "$PROMPT_FILE"
 [ -n "$DEVICE_INFO" ] && echo "**Device:** $DEVICE_INFO" >> "$PROMPT_FILE"
 [ -n "$OCCURRENCE_COUNT" ] && echo "**Occurrences:** $OCCURRENCE_COUNT" >> "$PROMPT_FILE"

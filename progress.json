@@ -8,19 +8,19 @@
       "id": 1,
       "step": "Task 1: Repository Setup, CI Workflow & Claude Agent Integration",
       "type": "work",
-      "status": "pending",
+      "status": "completed",
       "tier": "standard",
-      "commit": "",
-      "notes": ""
+      "commit": "55fe52b",
+      "notes": "Files verified, all Task 1 artifacts present. Smoke test permission pending."
     },
     {
       "id": 2,
       "step": "Task 2: Action Scaffolding & Input Handling",
       "type": "work",
-      "status": "pending",
+      "status": "completed",
       "tier": "standard",
       "commit": "",
-      "notes": ""
+      "notes": "Implemented: action/build-prompt.sh parses env vars (CRASH_ID, SIGNATURE, SUBTITLE, APP_VERSION, DEVICE_INFO, OCCURRENCE_COUNT, CREATE_TIME); generates well-formed Markdown prompts. Created action/prompt-template.md documentation. Added test fixtures: sample-crash-android-npe.json, sample-crash-android-classcast.json, sample-crash-minimal.json. Test script test/test-input-handling.sh validates inputs, prompt structure, and optional field omission."
     },
     {
       "id": 3,
