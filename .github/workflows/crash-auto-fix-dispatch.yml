@@ -1,0 +1,64 @@
+name: Crash auto-fix (repository_dispatch)
+
+# Trigger via repository_dispatch event
+# Example payload:
+# {
+#   "event_type": "crash-detected",
+#   "client_payload": {
+#     "crash_id": "12345",
+#     "signature": "java.lang.NullPointerException",
+#     "subtitle": "NullPointerException in MainActivity.onCreate",
+#     "app_version": "1.2.3",
+#     "stack_trace": "java.lang.NullPointerException: ...",
+#     "device_info": "Pixel 6, Android 13",
+#     "occurrence_count": 42,
+#     "create_time": "2026-05-19T10:30:00Z",
+#     "agent": "claude"
+#   }
+# }
+#
+# Send with: gh repo dispatch crash-detected --client-payload '{"crash_id":"12345",...}'
+
+on:
+  repository_dispatch:
+    types:
+      - crash-detected
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pr-url: ${{ steps.action.outputs.pr-url }}
+      pr-number: ${{ steps.action.outputs.pr-number }}
+      branch: ${{ steps.action.outputs.branch }}
+    steps:
+      - name: Run crash-fix action from repository_dispatch payload
+        id: action
+        uses: ./
+        with:
+          # Map client_payload fields (snake_case) to action inputs (kebab-case)
+          # Required fields from payload
+          crash-id: ${{ github.event.client_payload.crash_id }}
+          signature: ${{ github.event.client_payload.signature }}
+          app-version: ${{ github.event.client_payload.app_version }}
+          create-time: ${{ github.event.client_payload.create_time }}
+
+          # Optional fields from payload
+          subtitle: ${{ github.event.client_payload.subtitle }}
+          stack-trace: ${{ github.event.client_payload.stack_trace }}
+          device-info: ${{ github.event.client_payload.device_info }}
+          occurrence-count: ${{ github.event.client_payload.occurrence_count }}
+
+          # Conditional defaults
+          # agent defaults to 'claude' if not provided in payload
+          agent: ${{ github.event.client_payload.agent || 'claude' }}
+
+          # base-branch defaults to 'main' if not provided
+          base-branch: ${{ github.event.client_payload.base_branch || 'main' }}
+
+          # API key and GitHub token (typically from secrets in the calling repo)
+          api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github-token: ${{ github.token }}
