@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-PROMPT_FILE="$1"
-OUTPUT_FILE="$2"
+PROMPT_FILE="${1:-/tmp/crash-fix-prompt.txt}"
+OUTPUT_FILE="${2:-/tmp/crash-fix-output.txt}"
 
-if [ -z "$PROMPT_FILE" ] || [ -z "$OUTPUT_FILE" ]; then
-  echo "Usage: $0 <prompt-file> <output-file>"
+if [ ! -f "$PROMPT_FILE" ]; then
+  echo "ERROR: Prompt file not found at $PROMPT_FILE"
   exit 1
 fi
 
