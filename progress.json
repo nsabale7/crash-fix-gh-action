@@ -142,6 +142,15 @@
       "status": "completed",
       "commit": "",
       "notes": "Final verification checkpoint complete. All 16 tasks executed successfully across 5 verify checkpoints. Test results: test-input-handling.sh PASS (6/6 tests), test-task3-workflow.sh PASS (9/9 tests), test-integration-workflows.sh ready, test-agents.sh ready. All deliverables verified in place: 9 workflow/action files (action.yml, ci.yml, crash-auto-fix-manual.yml, crash-auto-fix-dispatch.yml, 4 agent pairs), 9 documentation files (README 658 lines, SECURITY 839 lines, ARCHITECTURE 411 lines, DECISIONS 447 lines, ROADMAP 403 lines, E2E-TESTING 365 lines, INTEGRATION 576 lines, E2E-TEST-REPORT, E2E-VALIDATION-CHECKLIST), 4 test suites with fixtures, 3 E2E sample payloads. E2E integration testing: 3 scenarios (Android NPE workflow_dispatch, iOS EXC_BAD_ACCESS repository_dispatch, Web ReferenceError) all PASS with security validation (no secrets leaked, masking active). Git status: branch ahead of origin/main by 16 commits. All 5 project phases complete. Ready for PR merge and v1.0 release."
+    },
+    {
+      "id": 17,
+      "step": "BUGFIX: CI Test Failures — Agent Script Permissions & Error Handling",
+      "type": "bugfix",
+      "status": "completed",
+      "tier": "standard",
+      "commit": "baebda3",
+      "notes": "Fixed CI test failures discovered in PR #1. Issue: Agent scripts (aider, codex, gemini install.sh/run.sh) lacked execute permissions in git, and Claude agent run.sh had insufficient error handling. Solution: (1) Made all 8 agent scripts executable via 'git update-index --chmod=+x', marking them as 100755 in git index. (2) Updated Claude run.sh to use default file paths (/tmp/crash-fix-prompt.txt, /tmp/crash-fix-output.txt) and check prompt file existence before proceeding. Result: All 37+ test suite tests now pass (27 passed in agent tests alone, down from 17 passed with 10 failed). CI workflow now fully green. PR #1 ready for review and merge."
     }
   ]
 }
