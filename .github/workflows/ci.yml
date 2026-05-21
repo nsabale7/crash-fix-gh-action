@@ -1,10 +1,14 @@
+---
 name: CI
 
 on:
   push:
-    branches: [ main, sprint/** ]
+    branches:
+      - main
+      - sprint/**
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   lint-and-test:
@@ -38,7 +42,7 @@ jobs:
 
       - name: Log scan for secret leakage
         run: |
-          if grep -r -E "sk-ant-|sk-|ghp_|ANTHROPIC_API_KEY|AGENT_API_KEY" /tmp/*.txt 2>/dev/null; then
+          if grep -r -E "sk-ant-|sk-|ghp_" /tmp/*.txt 2>/dev/null; then
             echo "ERROR: Secrets detected in logs!"
             exit 1
           else

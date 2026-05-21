@@ -1,3 +1,4 @@
+---
 name: Crash auto-fix (repository_dispatch)
 
 # Trigger via repository_dispatch event
@@ -17,7 +18,8 @@ name: Crash auto-fix (repository_dispatch)
 #   }
 # }
 #
-# Send with: gh repo dispatch crash-detected --client-payload '{"crash_id":"12345",...}'
+# Send with: gh repo dispatch crash-detected \
+#   --client-payload '{"crash_id":"12345",...}'
 
 on:
   repository_dispatch:
@@ -53,11 +55,10 @@ jobs:
           occurrence-count: ${{ github.event.client_payload.occurrence_count }}
 
           # Conditional defaults
-          # agent defaults to 'claude' if not provided in payload
-          agent: ${{ github.event.client_payload.agent || 'claude' }}
-
-          # base-branch defaults to 'main' if not provided
-          base-branch: ${{ github.event.client_payload.base_branch || 'main' }}
+          agent: >-
+            ${{ github.event.client_payload.agent || 'claude' }}
+          base-branch: >-
+            ${{ github.event.client_payload.base_branch || 'main' }}
 
           # API key and GitHub token (typically from secrets in the calling repo)
           api-key: ${{ secrets.ANTHROPIC_API_KEY }}
