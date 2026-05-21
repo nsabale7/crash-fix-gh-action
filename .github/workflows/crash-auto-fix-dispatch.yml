@@ -21,7 +21,7 @@ name: Crash auto-fix (repository_dispatch)
 # Send with: gh repo dispatch crash-detected \
 #   --client-payload '{"crash_id":"12345",...}'
 
-on:
+'on':
   repository_dispatch:
     types:
       - crash-detected
@@ -60,6 +60,6 @@ jobs:
           base-branch: >-
             ${{ github.event.client_payload.base_branch || 'main' }}
 
-          # API key and GitHub token (typically from secrets in the calling repo)
+          # API key and GitHub token (from repo secrets)
           api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           github-token: ${{ github.token }}
