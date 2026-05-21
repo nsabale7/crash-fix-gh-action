@@ -30,8 +30,12 @@ jobs:
           yamllint .github/workflows/ || true
           echo "Workflow linting passed (warnings non-blocking)"
 
-      - name: Run BATS tests
-        run: bats test/bats/*.bats
+      - name: Run test suite
+        run: |
+          bash test/test-input-handling.sh && \
+          bash test/test-task3-workflow.sh && \
+          bash test/test-integration-workflows.sh && \
+          bash test/test-agents.sh
         continue-on-error: false
 
       - name: Secret masking configuration
