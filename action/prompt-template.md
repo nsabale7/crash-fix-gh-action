@@ -39,8 +39,31 @@ java.lang.NullPointerException: Attempt to invoke virtual method 'int java.lang.
 Investigate this crash and propose a minimal fix. Your response should:
 1. Explain the root cause
 2. Identify the file(s) that need changes
-3. Provide a patch or code changes
+3. Provide the complete fixed file(s) in markdown code blocks with the file path as the language identifier
 4. Explain why this fix resolves the crash
+
+**IMPORTANT: Output Format for Code Changes**
+
+For each file that needs changes, output the entire file content (not a diff) in a markdown code block like this:
+
+````
+```path/to/file.ext
+// Complete file content here with all changes applied
+```
+````
+
+Example:
+````
+```app/src/main/java/com/example/MainActivity.java
+package com.example;
+
+public class MainActivity {
+    // ... complete file with fix applied ...
+}
+```
+````
+
+The action will automatically parse these code blocks and apply them to the repository. If you output diffs or partial code, the changes will not be applied.
 
 Scope changes **only** to files implicated by the stack trace. Do not refactor or improve unrelated code.
 ```
