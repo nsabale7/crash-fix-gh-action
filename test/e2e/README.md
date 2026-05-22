@@ -145,7 +145,7 @@ cd test/e2e
 gh workflow run crash-auto-fix-manual.yml \
   --repo owner/crash-fix-e2e-target \
   -f crash-id="e2e-scenario-1" \
-  -f crash-signature="NullPointerException in MainActivity.onCreate" \
+  -f signature="NullPointerException in MainActivity.onCreate" \
   -f app-version="1.0.0" \
   -f stack-trace="$(jq -r .stack_trace < sample-payloads/sample-payload-android-npe.json)" \
   -f agent="claude"

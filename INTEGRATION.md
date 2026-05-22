@@ -35,7 +35,7 @@ Trigger a manual test:
 ```bash
 gh workflow run crash-auto-fix-manual.yml \
   -f crash-id="test-001" \
-  -f crash-signature="MyException in Module.method" \
+  -f signature="MyException in Module.method" \
   -f app-version="1.0.0" \
   -f stack-trace="$(cat crash-trace.txt)" \
   -f agent="claude"
@@ -59,7 +59,7 @@ name: Fix Crash (Manual)
 on:
   workflow_dispatch:
     inputs:
-      crash-signature:
+      signature:
         description: "Crash signature (e.g., NullPointerException in MainActivity)"
         required: true
       app-version:
@@ -76,7 +76,7 @@ jobs:
       - uses: nsabale7/crash-fix-gh-action@main
         with:
           crash-id: ${{ github.run_id }}
-          crash-signature: ${{ inputs.crash-signature }}
+          signature: ${{ inputs.signature }}
           app-version: ${{ inputs.app-version }}
           stack-trace: ${{ inputs.stack-trace }}
           agent: claude
@@ -107,7 +107,7 @@ jobs:
       - uses: nsabale7/crash-fix-gh-action@main
         with:
           crash-id: ${{ github.event.client_payload.crash_id }}
-          crash-signature: ${{ github.event.client_payload.crash_signature }}
+          signature: ${{ github.event.client_payload.signature }}
           app-version: ${{ github.event.client_payload.app_version }}
           stack-trace: ${{ github.event.client_payload.stack_trace }}
           device-info: ${{ github.event.client_payload.device_info }}
@@ -125,7 +125,7 @@ curl -X POST https://api.github.com/repos/owner/repo/dispatches \
     "event_type": "crash-detected",
     "client_payload": {
       "crash_id": "crash-20250519-001",
-      "crash_signature": "NullPointerException in MainActivity",
+      "signature": "NullPointerException in MainActivity",
       "app_version": "2.1.0",
       "stack_trace": "java.lang.NullPointerException\n  at ...",
       "device_info": "Pixel 5, Android 12"
@@ -174,7 +174,7 @@ jobs:
           client_payload: |
             {
               "crash_id": "ci-${{ github.run_id }}",
-              "crash_signature": "${{ steps.parse-crash.outputs.signature }}",
+              "signature": "${{ steps.parse-crash.outputs.signature }}",
               "app_version": "${{ github.sha }}",
               "stack_trace": "${{ steps.parse-crash.outputs.stack-trace }}"
             }
@@ -244,7 +244,7 @@ def handler(request):
         "event_type": "crash-detected",
         "client_payload": {
             "crash_id": f"crashlytics-{issue.get('id')}",
-            "crash_signature": crash.get("signature"),
+            "signature": crash.get("signature"),
             "app_version": issue.get("appVersion"),
             "stack_trace": crash.get("stackTrace"),
             "device_info": crash.get("deviceInfo"),
@@ -328,7 +328,7 @@ Once the webhook dispatches the event, the `crash-auto-fix-dispatch.yml` workflo
            "event_type": "crash-detected",
            "client_payload": {
                "crash_id": f"sentry-{issue.get('id')}",
-               "crash_signature": f"{exception.get('type')}: {exception.get('value')}",
+               "signature": f"{exception.get('type')}: {exception.get('value')}",
                "app_version": event.get("tags", {}).get("release", "unknown"),
                "stack_trace": stack_trace
            }
@@ -356,7 +356,7 @@ Once the webhook dispatches the event, the `crash-auto-fix-dispatch.yml` workflo
        "event_type": "crash-detected",
        "client_payload": {
          "crash_id": "your-internal-crash-id",
-         "crash_signature": "ExceptionType: message",
+         "signature": "ExceptionType: message",
          "app_version": "x.y.z",
          "stack_trace": "full stack trace",
          "device_info": "optional device info"
@@ -407,7 +407,7 @@ jobs:
           CRASH_INFO=$(./scripts/extract-crash.sh smoke-test.log)
           gh workflow run crash-auto-fix-manual.yml \
             -f crash-id="release-smoke-test" \
-            -f crash-signature="$(echo $CRASH_INFO | jq -r .signature)" \
+            -f signature="$(echo $CRASH_INFO | jq -r .signature)" \
             -f app-version="${{ github.ref }}" \
             -f stack-trace="$(echo $CRASH_INFO | jq -r .stackTrace)"
 ```
@@ -531,7 +531,7 @@ curl -X POST https://api.github.com/repos/myorg/myapp/dispatches \
     "event_type": "crash-detected",
     "client_payload": {
       "crash_id": "crashlytics-12345",
-      "crash_signature": "NullPointerException in MainActivity.onCreate",
+      "signature": "NullPointerException in MainActivity.onCreate",
       "app_version": "2.1.0",
       "stack_trace": "java.lang.NullPointerException\n  at com.myapp.MainActivity.onCreate(MainActivity.java:42)"
     }
@@ -550,7 +550,7 @@ curl -X POST https://api.github.com/repos/myorg/myapp/dispatches \
 # Developer sees crash in logs and runs:
 gh workflow run crash-auto-fix-manual.yml \
   -f crash-id="oncall-20250519-001" \
-  -f crash-signature="IndexOutOfBoundsException in Utils.process" \
+  -f signature="IndexOutOfBoundsException in Utils.process" \
   -f app-version="2.0.5" \
   -f stack-trace="$(cat /tmp/crash.txt)" \
   -f agent="claude"
