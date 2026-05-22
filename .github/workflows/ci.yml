@@ -24,11 +24,17 @@ jobs:
       - name: Install dependencies
         run: npm install -g bats
 
+      - name: Secret masking configuration
+        run: |
+          echo "::add-mask::${ANTHROPIC_API_KEY}"
+          echo "::add-mask::${AGENT_API_KEY}"
+          echo "Secrets masked in logs"
+
       - name: Lint workflows (actionlint)
         run: |
-          sudo apt-get update && sudo apt-get install -y yamllint
-          yamllint .github/workflows/ || true
-          echo "Workflow linting passed (warnings non-blocking)"
+          sudo apt-get update && sudo apt-get install -y actionlint
+          actionlint .github/workflows/ || exit 1
+          echo "Workflow linting passed"
 
       - name: Run test suite
         run: |
@@ -37,12 +43,6 @@ jobs:
           bash test/test-integration-workflows.sh && \
           bash test/test-agents.sh
         continue-on-error: false
-
-      - name: Secret masking configuration
-        run: |
-          echo "::add-mask::${ANTHROPIC_API_KEY}"
-          echo "::add-mask::${AGENT_API_KEY}"
-          echo "Secrets masked in logs"
 
       - name: Log scan for secret leakage
         run: |

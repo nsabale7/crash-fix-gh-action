@@ -4,6 +4,8 @@
 - **App Version:** {{APP_VERSION}}
 - **Issue ID:** {{CRASH_ID}}
 - **Device:** {{DEVICE_INFO}}
+- **Occurrences:** {{OCCURRENCE_COUNT}}
+- **Detected:** {{CREATE_TIME}}
 
 ## Stack Trace
 

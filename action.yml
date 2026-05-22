@@ -125,6 +125,8 @@ runs:
         APP_VERSION: ${{ inputs.app-version }}
         STACK_TRACE: ${{ inputs.stack-trace }}
         DEVICE_INFO: ${{ inputs.device-info }}
+        OCCURRENCE_COUNT: ${{ inputs.occurrence-count }}
+        CREATE_TIME: ${{ inputs.create-time }}
       run: |
         set -e
 
@@ -135,16 +137,20 @@ runs:
         PR_BODY_FILE="/tmp/pr-body.md"
         cat action/pr-body-template.md > "$PR_BODY_FILE" || exit 1
 
-        # Use environment variables for safe substitution
-        sed -i "s|{{SIGNATURE}}|${SIGNATURE}|g" "$PR_BODY_FILE"
-        sed -i "s|{{CRASH_ID}}|${CRASH_ID}|g" "$PR_BODY_FILE"
-        sed -i "s|{{APP_VERSION}}|${APP_VERSION}|g" "$PR_BODY_FILE"
-        sed -i "s|{{DEVICE_INFO}}|${DEVICE_INFO}|g" "$PR_BODY_FILE"
-        sed -i "s|{{STACK_TRACE}}|${STACK_TRACE}|g" "$PR_BODY_FILE"
-        sed -i "s|{{AGENT_OUTPUT}}|${AGENT_OUTPUT}|g" "$PR_BODY_FILE"
+        # Use envsubst for safe placeholder substitution (avoids sed delimiter injection)
+        AGENT_OUTPUT="${AGENT_OUTPUT}" \
+        SIGNATURE="${SIGNATURE}" \
+        CRASH_ID="${CRASH_ID}" \
+        APP_VERSION="${APP_VERSION}" \
+        DEVICE_INFO="${DEVICE_INFO}" \
+        STACK_TRACE="${STACK_TRACE}" \
+        OCCURRENCE_COUNT="${OCCURRENCE_COUNT}" \
+        CREATE_TIME="${CREATE_TIME}" \
+        envsubst '${AGENT_OUTPUT},${SIGNATURE},${CRASH_ID},${APP_VERSION},${DEVICE_INFO},${STACK_TRACE},${OCCURRENCE_COUNT},${CREATE_TIME}' < "$PR_BODY_FILE" > "${PR_BODY_FILE}.tmp" || exit 1
+        mv "${PR_BODY_FILE}.tmp" "$PR_BODY_FILE" || exit 1
 
         # Create PR and capture output
-        PR_OUTPUT=$(gh pr create --title "Fix crash: ${SIGNATURE}" --body-file "$PR_BODY_FILE" --base ${{ inputs.base-branch }} 2>&1) || exit 1
+        PR_OUTPUT=$(gh pr create --title "Fix crash: ${SIGNATURE}" --body-file "$PR_BODY_FILE" --base "${{ inputs.base-branch }}" 2>&1) || exit 1
 
         # Extract PR URL and number
         PR_URL=$(echo "$PR_OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' || echo "")
