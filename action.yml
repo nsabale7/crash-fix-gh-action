@@ -114,6 +114,20 @@ runs:
         AGENT_API_KEY: ${{ inputs.api-key }}
       run: bash ${{ github.action_path }}/action/agents/${{ inputs.agent }}/run.sh /tmp/crash-fix-prompt.txt /tmp/agent-output.txt || exit 1
 
+    - name: Apply agent changes
+      shell: bash
+      run: bash ${{ github.action_path }}/action/apply-changes.sh /tmp/agent-output.txt || exit 1
+
+    - name: Log git diff
+      shell: bash
+      if: always()
+      run: |
+        echo "=== Git Diff ===" >&2
+        git diff --stat >&2
+        echo "" >&2
+        git diff >&2
+        echo "=== End Git Diff ===" >&2
+
     - name: Commit changes
       shell: bash
       run: |
