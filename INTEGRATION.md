@@ -65,23 +65,30 @@ on:
       app-version:
         description: "App version where crash occurred"
         required: true
+      create-time:
+        description: "ISO 8601 timestamp of crash (e.g. 2026-05-19T10:00:00Z)"
+        required: true
       stack-trace:
         description: "Full stack trace"
-        required: true
+        required: false
 
 jobs:
   fix:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: nsabale7/crash-fix-gh-action@main
         with:
-          crash-id: ${{ github.run_id }}
-          signature: ${{ inputs.signature }}
-          app-version: ${{ inputs.app-version }}
-          stack-trace: ${{ inputs.stack-trace }}
-          agent: claude
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          crash-id:     ${{ github.run_id }}
+          signature:    ${{ inputs.signature }}
+          app-version:  ${{ inputs.app-version }}
+          create-time:  ${{ inputs.create-time }}
+          stack-trace:  ${{ inputs.stack-trace }}
+          agent:        claude
+          api-key:      ${{ secrets.ANTHROPIC_API_KEY }}   # ✅ passed as with: input
+          github-token: ${{ secrets.GITHUB_TOKEN }}         # ✅ passed as with: input
 ```
 
 **Trigger via web UI**: Actions tab > Select workflow > Run workflow
@@ -103,17 +110,21 @@ on:
 jobs:
   fix:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: nsabale7/crash-fix-gh-action@main
         with:
-          crash-id: ${{ github.event.client_payload.crash_id }}
-          signature: ${{ github.event.client_payload.signature }}
-          app-version: ${{ github.event.client_payload.app_version }}
-          stack-trace: ${{ github.event.client_payload.stack_trace }}
-          device-info: ${{ github.event.client_payload.device_info }}
-          agent: ${{ github.event.client_payload.agent || 'claude' }}
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          crash-id:         ${{ github.event.client_payload.crash_id }}
+          signature:        ${{ github.event.client_payload.signature }}
+          app-version:      ${{ github.event.client_payload.app_version }}
+          create-time:      ${{ github.event.client_payload.create_time }}
+          stack-trace:      ${{ github.event.client_payload.stack_trace }}
+          device-info:      ${{ github.event.client_payload.device_info }}
+          agent:            ${{ github.event.client_payload.agent || 'claude' }}
+          api-key:          ${{ secrets.ANTHROPIC_API_KEY }}   # ✅ passed as with: input
+          github-token:     ${{ secrets.GITHUB_TOKEN }}         # ✅ passed as with: input
 ```
 
 **Trigger via API**:
@@ -558,6 +569,99 @@ gh workflow run crash-auto-fix-manual.yml \
 # Workflow runs, Claude suggests a fix
 # Developer reviews the PR and merges if satisfied
 # If not satisfied, they can run again with more context
+```
+
+---
+
+## Common Mistakes
+
+### Mistake 1: Passing `api-key` as an environment variable instead of a `with:` input
+
+**What it looks like (WRONG):**
+```yaml
+steps:
+  - uses: nsabale7/crash-fix-gh-action@main
+    with:
+      crash-id: abc123
+      signature: NullPointerException
+      app-version: 1.0.0
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # ❌ wrong
+```
+
+**Error you'll see:**
+```
+Error: Input required and not supplied: api-key
+```
+or
+```
+Error: AGENT_API_KEY is not set. Pass api-key as a with: input, not as an env var.
+```
+
+**Why this happens:** The action reads `api-key` from the `with:` block via `${{ inputs.api-key }}`. Setting `ANTHROPIC_API_KEY` as an `env:` variable bypasses this entirely — `inputs.api-key` will be empty, and the action will fail at the validation step before the agent ever runs.
+
+**Fix:**
+```yaml
+steps:
+  - uses: nsabale7/crash-fix-gh-action@main
+    with:
+      crash-id:  abc123
+      signature: NullPointerException
+      app-version: 1.0.0
+      create-time: "2026-05-19T10:00:00Z"
+      api-key:      ${{ secrets.ANTHROPIC_API_KEY }}   # ✅ correct
+      github-token: ${{ secrets.GITHUB_TOKEN }}         # ✅ correct
+```
+
+---
+
+### Mistake 2: Omitting `github-token` from `with:` inputs
+
+**What it looks like (WRONG):**
+```yaml
+steps:
+  - uses: nsabale7/crash-fix-gh-action@main
+    with:
+      crash-id:  abc123
+      signature: NullPointerException
+      app-version: 1.0.0
+      create-time: "2026-05-19T10:00:00Z"
+      api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      # ❌ github-token is missing — branch push and PR creation will fail
+```
+
+**Error you'll see:**
+```
+Error: Input required and not supplied: github-token
+```
+
+**Fix:** Always include `github-token: ${{ secrets.GITHUB_TOKEN }}` in the `with:` block.
+
+---
+
+### Mistake 3: Omitting `create-time` (required field)
+
+`create-time` is a required input. Omitting it causes the action's input validation step to fail before any agent work begins.
+
+**Error you'll see:**
+```
+ERROR: Missing required input: create-time
+```
+
+**Fix:** Always supply `create-time` as an ISO 8601 timestamp:
+```yaml
+create-time: "2026-05-19T10:00:00Z"
+```
+
+For `workflow_dispatch`, add it as a required input in the trigger definition so callers must provide it:
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      create-time:
+        description: "ISO 8601 timestamp of when the crash occurred"
+        required: true
+        type: string
 ```
 
 ---

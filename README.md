@@ -255,6 +255,84 @@ curl -X POST https://api.github.com/repos/<owner>/<repo>/dispatches \
 
 ---
 
+## Required Inputs
+
+Three inputs are **mandatory security inputs** that must be passed via the `with:` block from GitHub Secrets. A common mistake is setting them as environment variables — this prevents the action from receiving them and causes auth failures.
+
+### The Three Required Security Inputs
+
+| Input | How to pass it | Secret name |
+|---|---|---|
+| `api-key` | `with: api-key: ${{ secrets.ANTHROPIC_API_KEY }}` | `ANTHROPIC_API_KEY` |
+| `github-token` | `with: github-token: ${{ secrets.GITHUB_TOKEN }}` | Built-in `GITHUB_TOKEN` |
+| `create-time` | `with: create-time: <ISO 8601 timestamp>` | N/A (crash payload field) |
+
+### WRONG — do not do this
+
+```yaml
+steps:
+  - uses: nsabale7/crash-fix-gh-action@main
+    with:
+      crash-id: abc123
+      signature: NullPointerException
+      app-version: 1.0.0
+      # ❌ create-time is missing entirely
+      # ❌ api-key is missing from with: block
+      # ❌ github-token is missing from with: block
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}  # ❌ wrong — must be an input, not env var
+```
+
+Setting `ANTHROPIC_API_KEY` as an environment variable does **not** satisfy the `api-key` input. The action reads `api-key` from the `with:` block and maps it to the correct env var internally. If you pass it as `env:`, the action will fail with "Error: Input 'api-key' is required but was not provided."
+
+### CORRECT — do this instead
+
+```yaml
+steps:
+  - uses: nsabale7/crash-fix-gh-action@main
+    with:
+      crash-id: abc123
+      signature: NullPointerException
+      app-version: 1.0.0
+      create-time: "2026-05-19T10:00:00Z"   # ✅ required ISO 8601 timestamp
+      api-key: ${{ secrets.ANTHROPIC_API_KEY }}   # ✅ passed as with: input from secret
+      github-token: ${{ secrets.GITHUB_TOKEN }}   # ✅ passed as with: input
+```
+
+### Minimal correct workflow
+
+```yaml
+name: Crash auto-fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      crash-id:    { required: true }
+      signature:   { required: true }
+      app-version: { required: true }
+      create-time: { required: true }
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: nsabale7/crash-fix-gh-action@main
+        with:
+          crash-id:     ${{ inputs.crash-id }}
+          signature:    ${{ inputs.signature }}
+          app-version:  ${{ inputs.app-version }}
+          create-time:  ${{ inputs.create-time }}
+          api-key:      ${{ secrets.ANTHROPIC_API_KEY }}   # ✅ from secrets, passed as input
+          github-token: ${{ secrets.GITHUB_TOKEN }}         # ✅ built-in token, passed as input
+```
+
+> **Key rule:** `api-key` and `github-token` MUST be passed as `with:` inputs. Setting them as `env:` variables will not work and will cause the action to fail.
+
+---
+
 ## Inputs
 
 | Input | Required | Default | Type | Description | Example |

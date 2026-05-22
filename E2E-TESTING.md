@@ -82,17 +82,37 @@ cp .github/workflows/crash-auto-fix-dispatch.yml /path/to/test-repo/.github/work
 ```
 
 ### Step 5: Update Action Reference
-Edit both workflow files in the test repo to reference the action correctly:
+Edit both workflow files in the test repo to reference the action correctly and ensure `api-key` and `github-token` are passed as `with:` inputs — **not** as `env:` variables.
 
 **For feature branch testing (during development):**
 ```yaml
-uses: nsabale7/crash-fix-gh-action@sprint/crash-fix-action-v1
+- uses: nsabale7/crash-fix-gh-action@sprint/crash-fix-action-v1
+  with:
+    crash-id:     ${{ inputs.crash-id }}
+    signature:    ${{ inputs.signature }}
+    app-version:  ${{ inputs.app-version }}
+    create-time:  ${{ inputs.create-time }}
+    stack-trace:  ${{ inputs.stack-trace }}
+    agent:        ${{ inputs.agent || 'claude' }}
+    api-key:      ${{ secrets.ANTHROPIC_API_KEY }}   # ✅ with: input, not env:
+    github-token: ${{ secrets.GITHUB_TOKEN }}         # ✅ with: input, not env:
 ```
 
 **For released version:**
 ```yaml
-uses: nsabale7/crash-fix-gh-action@v1  # or @main
+- uses: nsabale7/crash-fix-gh-action@v1  # or @main
+  with:
+    crash-id:     ${{ inputs.crash-id }}
+    signature:    ${{ inputs.signature }}
+    app-version:  ${{ inputs.app-version }}
+    create-time:  ${{ inputs.create-time }}
+    stack-trace:  ${{ inputs.stack-trace }}
+    agent:        ${{ inputs.agent || 'claude' }}
+    api-key:      ${{ secrets.ANTHROPIC_API_KEY }}   # ✅ with: input, not env:
+    github-token: ${{ secrets.GITHUB_TOKEN }}         # ✅ with: input, not env:
 ```
+
+> **Important:** Never pass `api-key` or `github-token` as `env:` variables. The action reads them from the `with:` block (`inputs.api-key` / `inputs.github-token`). Setting them as `env:` bypasses the input contract and causes the action to fail with "Input required and not supplied: api-key".
 
 ### Step 6: Create a Sample Crash Scenario (Optional but Recommended)
 Add a small Java/Kotlin crash scenario to the test repo for testing:
@@ -136,9 +156,11 @@ gh workflow run crash-auto-fix-manual.yml \
   -f crash-id=test-npe-001 \
   -f signature="NullPointerException in MainActivity.processUserData" \
   -f app-version="1.0.0" \
+  -f create-time="2026-05-19T10:00:00Z" \
   -f stack-trace="$(cat sample-crash-stack.txt)" \
   -f device-info="Pixel 5, Android 12" \
   -f agent="claude"
+# api-key and github-token come from repository secrets in the workflow file
 ```
 
 **Via curl (requires GITHUB_TOKEN):**
@@ -327,8 +349,11 @@ gh workflow run crash-auto-fix-manual.yml \
   -f crash-id=test-001 \
   -f signature="NullPointerException in MainActivity.onCreate" \
   -f app-version="1.0.0" \
+  -f create-time="2026-05-19T10:00:00Z" \
   -f stack-trace="java.lang.NullPointerException\n  at com.example.MainActivity.onCreate(MainActivity.java:42)" \
   -f agent="claude"
+# Note: api-key and github-token are supplied from repository secrets (ANTHROPIC_API_KEY,
+# GITHUB_TOKEN) by the workflow file itself — do NOT pass them as -f flags here.
 
 # Wait for workflow to complete
 sleep 30
