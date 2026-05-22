@@ -21,10 +21,12 @@ trap "rm -rf $TEMP_DIR" EXIT
 
 # Use awk to extract code blocks with filenames
 # Looks for: ```filename.ext ... ```
+# Supports: Java, Kotlin, Swift, JavaScript, TypeScript, Python, Go, Ruby, PHP, C/C++, C#,
+#           XML, JSON, YAML, Bash, Gradle, Groovy, SQL, CSS/SCSS, TSX/JSX, TOML, Markdown
 awk '
-/^```[a-zA-Z0-9._\/\-]+\.(java|kt|swift|js|ts|py|go|rb|php|cpp|c|h|cs|xml|json|yaml|yml|sh|bash)$/ {
+/^```[a-zA-Z0-9._\/\-]+\.(java|kt|swift|js|ts|tsx|jsx|py|go|rb|php|cpp|c|h|cs|xml|json|yaml|yml|sh|bash|gradle|groovy|proto|sql|css|scss|toml|md)$/ {
     # Extract filename from the code block marker
-    match($0, /```([a-zA-Z0-9._\/\-]+\.(java|kt|swift|js|ts|py|go|rb|php|cpp|c|h|cs|xml|json|yaml|yml|sh|bash))/, arr)
+    match($0, /```([a-zA-Z0-9._\/\-]+\.(java|kt|swift|js|ts|tsx|jsx|py|go|rb|php|cpp|c|h|cs|xml|json|yaml|yml|sh|bash|gradle|groovy|proto|sql|css|scss|toml|md))/, arr)
     filename = arr[1]
     if (filename != "") {
         in_block = 1
@@ -63,8 +65,8 @@ while IFS=':' read -r marker filepath code; do
     # Create directories if needed
     mkdir -p "$(dirname "$filepath")"
 
-    # Write the code to the file
-    printf '%b' "$code" > "$filepath"
+    # Write the code to the file (use printf %s to avoid interpreting escape sequences)
+    printf '%s' "$code" > "$filepath"
     CHANGES_APPLIED=$((CHANGES_APPLIED + 1))
     echo "  ✓ Applied"
   fi
@@ -75,20 +77,26 @@ if [ $CHANGES_APPLIED -eq 0 ]; then
   echo ""
   echo "Checking for implicit changes (file modifications detected by git diff)..."
 
+  # Try to detect git changes, but don't silently succeed if parsing failed
   if git diff --quiet; then
     echo ""
-    echo "⚠ No file changes detected in working directory"
+    echo "⚠ ERROR: No code changes detected in agent output"
     echo ""
-    echo "To apply Claude's suggestions, ensure Claude outputs code in this format:"
+    echo "Claude must output code in markdown code blocks with file paths:"
     echo ""
     echo '```filepath.ext'
     echo 'code here'
-    echo 'more code'
     echo '```'
     echo ""
+    echo "Agent output was:"
+    echo "---"
+    cat "$AGENT_OUTPUT" >&2
+    echo "---"
     exit 1
   else
-    echo "✓ Git detected file changes - proceeding with commit"
+    # Git found changes, likely from agent modifying files directly
+    echo "⚠ Note: No structured code blocks found, but git detected file changes"
+    echo "    Proceeding with commit of git-detected changes"
     exit 0
   fi
 else

@@ -3,6 +3,10 @@ set -e
 
 echo "=== Testing Apply Changes Script ==="
 
+# Capture the script directory before changing directories
+SCRIPT_DIR="$(cd "$(dirname "$0")" && cd .. && pwd)"
+APPLY_SCRIPT="$SCRIPT_DIR/action/apply-changes.sh"
+
 # Create a temporary test directory
 TEST_DIR=$(mktemp -d)
 trap "rm -rf $TEST_DIR" EXIT
@@ -54,8 +58,8 @@ git diff HEAD
 echo ""
 echo "Running apply-changes script..."
 
-# Run the apply-changes script
-if bash "$(dirname "$0")/../action/apply-changes.sh" agent-output.txt; then
+# Run the apply-changes script using the captured absolute path
+if bash "$APPLY_SCRIPT" agent-output.txt; then
     echo "✓ Script completed successfully"
 
     echo ""
