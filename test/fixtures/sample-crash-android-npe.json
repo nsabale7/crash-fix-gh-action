@@ -1,0 +1,10 @@
+{
+  "crash_id": "crash-android-npe-001",
+  "signature": "NullPointerException: Attempt to invoke virtual method 'int java.lang.String.length()' on a null object reference",
+  "subtitle": "at com.example.app.MainActivity.onCreate",
+  "app_version": "1.2.3",
+  "stack_trace": "java.lang.NullPointerException: Attempt to invoke virtual method 'int java.lang.String.length()' on a null object reference\n  at com.example.app.MainActivity.onCreate(MainActivity.java:45)\n  at android.app.Activity.performCreate(Activity.java:8080)\n  at android.app.Activity.performCreate(Activity.java:8070)\n  at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1213)\n  at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3029)\n  at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3192)\n  at android.app.ActivityThread.-wrap11(ActivityThread.java)\n  at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1677)\n  at android.os.Handler.dispatchMessage(Handler.java:106)\n  at android.os.Looper.loop(Looper.java:193)\n  at android.app.ActivityThread.main(ActivityThread.java:6669)\n  at java.lang.reflect.Method.invoke(Native Method)\n  at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:493)\n  at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:858)",
+  "device_info": "Pixel 4 | Android 12",
+  "occurrence_count": "142",
+  "create_time": "2026-05-19T10:30:00Z"
+}

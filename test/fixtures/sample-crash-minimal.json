@@ -1,0 +1,6 @@
+{
+  "crash_id": "crash-minimal-001",
+  "signature": "IndexOutOfBoundsException: Index 5 out of bounds for length 3",
+  "app_version": "2.0.0",
+  "create_time": "2026-05-19T12:00:00Z"
+}

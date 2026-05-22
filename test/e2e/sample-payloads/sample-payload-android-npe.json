@@ -1,0 +1,10 @@
+{
+  "crash_id": "crashlytics-e2e-android-npe-001",
+  "signature": "java.lang.NullPointerException in MainActivity.onCreate",
+  "subtitle": "Caused by null reference in onCreate lifecycle method",
+  "app_version": "2.1.0",
+  "stack_trace": "java.lang.NullPointerException: Attempt to invoke virtual method 'void android.view.View.setOnClickListener(android.view.View$OnClickListener)' on a null object reference\n  at com.example.myapp.MainActivity.onCreate(MainActivity.java:42)\n  at android.app.Activity.performCreate(Activity.java:7136)\n  at android.app.Activity.performCreate(Activity.java:7127)\n  at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1271)\n  at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2894)\n  at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3049)\n  at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:78)\n  at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:108)\n  at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:68)\n  at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1808)\n  at android.os.Handler.dispatchMessage(Handler.java:106)\n  at android.os.Looper.loop(Looper.java:193)\n  at android.app.ActivityThread.main(ActivityThread.java:6669)\n  at java.lang.reflect.Method.invoke(Native Method)\n  at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:493)\n  at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:858)",
+  "device_info": "Pixel 5, Android 12 (API 31)",
+  "occurrence_count": 42,
+  "create_time": "2025-05-19T10:30:00Z"
+}

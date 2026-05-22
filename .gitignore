@@ -1,0 +1,11 @@
+.fleet-task.md
+node_modules/
+npm-debug.log
+dist/
+build/
+*.swp
+*.swo
+*~
+.DS_Store
+.env
+.env.local

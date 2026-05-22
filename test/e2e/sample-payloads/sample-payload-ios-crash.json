@@ -1,0 +1,10 @@
+{
+  "crash_id": "crashlytics-e2e-ios-crash-001",
+  "signature": "EXC_BAD_ACCESS in UIViewController.viewDidLoad",
+  "subtitle": "Memory access violation in viewDidLoad",
+  "app_version": "3.0.1",
+  "stack_trace": "Thread 0 Crashed:\n0  libsystem_kernel.dylib          0x00000001a1d1aa44 __pthread_kill + 8\n1  libsystem_pthread.dylib         0x00000001a1e38288 pthread_kill + 144\n2  libsystem_c.dylib               0x00000001a1c63534 abort + 140\n3  libobjc.A.dylib                 0x00000001a0f36588 objc_exception_throw + 60\n4  MyApp                           0x0000000104a6c000 -[UIViewController viewDidLoad] + 128\n5  UIKit                           0x00000001a4c2c000 -[UIView(CALayerDelegate) layoutSublayersOfLayer:] + 1408\n6  QuartzCore                      0x00000001a5a3c000 -[CALayer layoutSublayers] + 148\n7  QuartzCore                      0x00000001a5a40000 _ZN2CA5Layer16layout_if_neededEPNS_11TransactionE + 376\n8  QuartzCore                      0x00000001a5a44000 _ZN2CA5Layer28flush_if_needed_recurseEPNS_11TransactionE + 72\n9  QuartzCore                      0x00000001a5a48000 _ZN2CA11Transaction4flushEv + 400\n10 UIKit                           0x00000001a4c30000 _UIApplicationHandleEventQueue + 5280\n11 CoreFoundation                  0x00000001a08e8000 __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__ + 28\n12 CoreFoundation                  0x00000001a08e8000 __CFRunLoopDoSources0 + 540\n13 CoreFoundation                  0x00000001a08e8000 __CFRunLoopRun + 804\n14 CoreFoundation                  0x00000001a08e7c40 CFRunLoopRunSpecific + 604\n15 GraphicsServices                0x00000001b40a0000 GSEventRunModal + 264\n16 UIKit                           0x00000001a4c00000 UIApplicationMain + 1932\n17 MyApp                           0x0000000104a6a000 main + 84 (main.swift:14)\n18 libsystem_darwin.dylib          0x00000001a1d40000 start + 4",
+  "device_info": "iPhone 12 Pro, iOS 15.4",
+  "occurrence_count": 8,
+  "create_time": "2025-05-19T11:15:00Z"
+}

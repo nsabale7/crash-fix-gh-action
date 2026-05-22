@@ -1,160 +1,179 @@
-# SP-1 Technical Design
+# Design — SP-1 Crash Auto-Fix GitHub Action
 
-## Architecture Overview
+## Problem
+- Fatal-crash triage is mechanical — engineers read the stack trace, find the file, write a small fix, open a PR. The investigative part is exactly what Claude Code is good at.
+- Whoever holds a crash payload (Cloud Function, webhook, manual trigger) has nowhere to hand it off. There's no reusable bridge from "crash payload" to "PR with a proposed fix."
 
-```
-crash-fix-gh-action/
-├── action.yml                    # Action manifest: inputs, outputs, runs (composite)
-├── action/
-│   ├── crash-payload-schema.json # JSON schema for repository_dispatch client_payload
-│   ├── validate.sh               # Validates required inputs; exits non-zero on failure
-│   ├── build-prompt.sh           # Assembles structured prompt → $PROMPT_FILE
-│   ├── branch.sh                 # Creates and pushes crash-fix/<sig>-<run-id> branch
-│   ├── commit.sh                 # Stages diff, commits, pushes; fails on empty diff
-│   ├── open-pr.sh                # Opens PR via gh CLI; writes outputs
-│   ├── pr-template.md            # Mustache-style PR body template
-│   └── agents/
-│       ├── claude/
-│       │   ├── install.sh        # Installs Claude Code CLI (npm -g @anthropic-ai/claude-code)
-│       │   └── run.sh            # Runs claude --print < $PROMPT_FILE > $OUTPUT_FILE
-│       ├── aider/
-│       │   ├── install.sh        # stub: echo "not implemented"; exit 1
-│       │   └── run.sh            # stub: echo "not implemented"; exit 1
-│       ├── codex/
-│       │   ├── install.sh        # stub
-│       │   └── run.sh            # stub
-│       └── gemini/
-│           ├── install.sh        # stub
-│           └── run.sh            # stub
-└── .github/
-    └── workflows/
-        └── ci.yml                # Lint + unit tests on PRs
-```
+## Solution
+Ship a reusable composite Action at `org/crash-fix-gh-action`. It accepts crash fields as typed inputs, checks out the caller's repo on a new branch, runs a pluggable coding-agent CLI (`claude` for v1; `aider`/`codex`/`gemini-cli` slotted in via the same seam) non-interactively against the source with the crash context, and opens a PR. The Action is invocation-agnostic — consumer workflows wire it to whichever trigger fits: `workflow_dispatch` for manual/API calls, `repository_dispatch` for external dispatchers. Crash-source plumbing stays out of this repo.
 
-`action.yml` uses `runs: using: composite` so every step is a plain shell script — no Docker build, no Node bundle for v1.
+We reuse the artifacts from the prior crash-fix-agent repo (`build-prompt.sh`, `crash-payload-schema.json`, `pr-body-template.md`) — input names below mirror the existing schema so callers don't have to relearn the contract.
 
----
+### Pluggable agent seam
+Each agent lives under `action/agents/<name>/` with two scripts the Action invokes by convention:
+- `install.sh` — installs the agent CLI on the runner (no args, no env beyond standard PATH).
+- `run.sh <prompt-file> <output-file>` — reads the prompt, runs the agent non-interactively, writes the agent's text output. Receives `AGENT_API_KEY` in env and maps it to whatever env var the underlying CLI expects (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, …).
 
-## Data Flow
+v1 ships `action/agents/claude/` fully wired. Other agents are scaffolded with placeholder scripts that exit with a "not yet implemented" error — adding one is a self-contained PR that doesn't touch `action.yml` or the prompt builder.
 
-```
-Trigger (workflow_dispatch / repository_dispatch)
-  │
-  ▼
-[1] validate.sh
-    Checks required inputs (crash-id, signature, app-version, create-time, api-key, github-token).
-    Fails fast with a descriptive message if any are missing.
-  │
-  ▼
-[2] build-prompt.sh
-    Writes a structured markdown prompt to $PROMPT_FILE (/tmp/crash-prompt.md).
-    Includes: crash signature, stack trace, app version, create time, device info,
-    occurrence count, and instruction to limit edits to implicated files.
-  │
-  ▼
-[3] action/agents/<name>/install.sh
-    Installs the selected agent CLI on the runner.
-    Exports the correct provider API key env var
-    (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY).
-  │
-  ▼
-[4] branch.sh
-    git checkout -b crash-fix/<signature>-<run-id> from base-branch.
-    Pushes the empty branch to origin.
-  │
-  ▼
-[5] action/agents/<name>/run.sh
-    Invokes the agent non-interactively.
-    Reads $PROMPT_FILE; writes change summary to $OUTPUT_FILE (/tmp/agent-output.md).
-    REPO_PATH is the checked-out workspace root.
-  │
-  ▼
-[6] commit.sh
-    git diff --exit-code HEAD — if no changes, fail (FR-6).
-    git add -A; git commit -m "fix: agent-proposed fix for <signature>"
-    git push origin <branch>
-  │
-  ▼
-[7] open-pr.sh
-    gh pr create --base <base-branch> --head <branch> --body "$(cat pr-body.md)"
-    Writes pr-url, pr-number, branch to $GITHUB_OUTPUT.
-    Appends pr-url to $GITHUB_STEP_SUMMARY.
-```
+## Action Contract
 
----
+### Inputs (`action.yml`)
+Mirror the fields in `action/crash-payload-schema.json`. Action input names are kebab-case (GitHub convention); the underlying schema uses snake_case (JSON convention).
 
-## Agent Seam Contract
+| Input (kebab) | Schema field (snake) | Required | Description |
+|---|---|---|---|
+| `crash-id` | `crash_id` | yes | Unique Crashlytics issue id |
+| `signature` | `signature` | yes | Exception class / crash title |
+| `subtitle` | `subtitle` | no | First line of stack trace summary |
+| `app-version` | `app_version` | yes | App version at time of crash |
+| `stack-trace` | `stack_trace` | no | Full stack trace text (may be placeholder if upstream couldn't fetch) |
+| `device-info` | `device_info` | no | Device make/model + Android version |
+| `occurrence-count` | `occurrence_count` | no | How many users hit this |
+| `create-time` | `create_time` | yes | ISO 8601 timestamp |
+| `agent` | — | no (default `claude`) | Which coding agent to invoke. Must match a folder under `action/agents/`. v1: `claude` wired; `aider`/`codex`/`gemini` scaffolded. |
+| `base-branch` | — | no (default `main`) | Branch to fork from / target the PR at |
+| `api-key` | — | yes (secret) | Provider API key. The selected agent's `run.sh` maps `AGENT_API_KEY` to whatever env var the underlying CLI expects. |
+| `github-token` | — | yes (secret) | Used to push branch and open PR |
 
-Every agent implementation under `action/agents/<name>/` MUST honor this contract:
-
-### Environment Variables (provided by the action before calling run.sh)
-
-| Variable | Description |
+### Outputs
+| Name | Description |
 |---|---|
-| `AGENT_API_KEY` | Provider API key (value of the `api-key` input). The run.sh re-exports this as the provider-specific var (e.g., `ANTHROPIC_API_KEY`). |
-| `REPO_PATH` | Absolute path to the checked-out repository workspace. The agent MUST make edits under this path only. |
-| `PROMPT_FILE` | Absolute path to the prompt file (e.g., `/tmp/crash-prompt.md`). The agent reads its instructions from here. |
-| `OUTPUT_FILE` | Absolute path where the agent writes its change summary (e.g., `/tmp/agent-output.md`). MUST exist and be non-empty after a successful run. |
+| `pr-url` | URL of the PR opened on the consumer repo |
+| `pr-number` | Number of that PR |
+| `branch` | Branch name pushed |
 
-### Exit Codes
+## Action Steps
+All steps below live as `run:` blocks inside `action.yml` (composite Action). Prompt and PR-body assembly are kept in `action/*.sh` / `action/*.md` for testability; the agent's install + run are delegated to per-agent scripts so `action.yml` stays agent-agnostic.
 
-| Code | Meaning |
-|---|---|
-| `0` | Agent ran successfully and made at least one file edit. |
-| `1` | Agent ran but produced no changes (pre-empts commit.sh empty-diff check). |
-| `2+` | Agent failed (auth error, network timeout, internal error). |
+1. **Checkout** — `actions/checkout@v4` on `base-branch` of the consumer repo.
+2. **Branch** — create `crash-fix/<signature-slug>-<run-id>`.
+3. **Install agent CLI** — dispatch to the selected agent's install script:
+   ```yaml
+   - name: Install agent CLI
+     shell: bash
+     run: bash action/agents/${{ inputs.agent }}/install.sh
+   ```
+   For `claude`, `install.sh` runs `npm install -g @anthropic-ai/claude-code` (no third-party setup action). `ubuntu-latest` runners ship Node 20+, so npm install is one line.
+4. **Build prompt** — run `action/build-prompt.sh` with crash inputs in env. It scans the stack trace for implicated `.java` files, locates them in the checkout, and writes `/tmp/crash-fix-prompt.txt`.
+5. **Run agent** — dispatch to the selected agent's run script:
+   ```yaml
+   - name: Run agent
+     shell: bash
+     env:
+       AGENT_API_KEY: ${{ inputs.api-key }}
+     run: bash action/agents/${{ inputs.agent }}/run.sh /tmp/crash-fix-prompt.txt /tmp/agent-output.txt
+   ```
+   For `claude`, `run.sh` exports `ANTHROPIC_API_KEY="$AGENT_API_KEY"` and invokes:
+   ```bash
+   claude --print --dangerously-skip-permissions < "$1" > "$2"
+   ```
+6. **Commit** — `git add -A && git commit -m "..."`. If no diff, fail the run loudly — no silent no-ops.
+7. **Push** — push the branch using `github-token`.
+8. **Open PR** — render `action/pr-body-template.md` with crash fields + the agent's output from `/tmp/agent-output.txt`, then `gh pr create`.
+9. **Outputs** — export `pr-url`, `pr-number`, `branch` as step outputs.
 
-### install.sh Contract
-- MUST be idempotent (safe to call if already installed).
-- MUST exit `0` on success, non-zero on failure.
-- MUST NOT require interactive input.
+## Trigger Wiring
+Two demo workflows live in `.github/workflows/` of this repo (so we can smoke-test end-to-end) and double as templates the README points consumers at.
 
----
+**`workflow_dispatch`** — typed inputs for manual / API invocation:
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      crash-id:     { required: true }
+      signature:    { required: true }
+      app-version:  { required: true }
+      create-time:  { required: true }
+      stack-trace:  { required: false }
+      subtitle:     { required: false }
+      device-info:  { required: false }
+      agent:        { required: false, default: claude }
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions: { contents: write, pull-requests: write }
+    steps:
+      - uses: org/crash-fix-gh-action@v1
+        with:
+          crash-id:     ${{ inputs.crash-id }}
+          signature:    ${{ inputs.signature }}
+          app-version:  ${{ inputs.app-version }}
+          create-time:  ${{ inputs.create-time }}
+          stack-trace:  ${{ inputs.stack-trace }}
+          subtitle:     ${{ inputs.subtitle }}
+          device-info:  ${{ inputs.device-info }}
+          agent:        ${{ inputs.agent }}
+          api-key:      ${{ secrets.AGENT_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+```
 
-## Key Design Decisions
+**`repository_dispatch`** — external dispatcher pushes `client_payload` matching `action/crash-payload-schema.json`:
+```yaml
+on:
+  repository_dispatch:
+    types: [crash-detected]
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions: { contents: write, pull-requests: write }
+    steps:
+      - uses: org/crash-fix-gh-action@v1
+        with:
+          crash-id:         ${{ github.event.client_payload.crash_id }}
+          signature:        ${{ github.event.client_payload.signature }}
+          app-version:      ${{ github.event.client_payload.app_version }}
+          create-time:      ${{ github.event.client_payload.create_time }}
+          stack-trace:      ${{ github.event.client_payload.stack_trace }}
+          subtitle:         ${{ github.event.client_payload.subtitle }}
+          device-info:      ${{ github.event.client_payload.device_info }}
+          occurrence-count: ${{ github.event.client_payload.occurrence_count }}
+          agent:            ${{ github.event.client_payload.agent || 'claude' }}
+          api-key:          ${{ secrets.AGENT_API_KEY }}
+          github-token:     ${{ secrets.GITHUB_TOKEN }}
+```
 
-### Pluggable Agent Pattern
-Agent dispatch is purely file-system driven: the action resolves `action/agents/$AGENT/install.sh` and `action/agents/$AGENT/run.sh` from the `agent` input. Adding an agent requires no changes outside its own directory (NFR-3). Unknown agent names fail at the file-resolution step with a clear error.
+## Repo Layout
+```
+action.yml                       # composite Action definition (NEW for this repo)
+action/                          # reused from crash-fix-agent
+  build-prompt.sh                # assembles crash context, locates implicated files
+  crash-payload-schema.json      # canonical schema for client_payload
+  pr-body-template.md            # rendered into the PR body
+  agents/                        # pluggable agent seam
+    claude/
+      install.sh                 # npm i -g @anthropic-ai/claude-code
+      run.sh                     # ANTHROPIC_API_KEY=... claude --print ...
+    aider/                       # scaffolded, install/run scripts exit "not implemented" in v1
+      install.sh
+      run.sh
+    codex/                       # scaffolded
+      install.sh
+      run.sh
+    gemini/                      # scaffolded
+      install.sh
+      run.sh
+src/sample/                      # Android fixture the Action runs against in smoke tests
+  HelloActivity.java             # known-bad source with a reproducible crash
+test/fixtures/                   # sample crash payloads for repository_dispatch tests
+.github/workflows/
+  demo-dispatch.yml              # workflow_dispatch demo + smoke test
+  demo-repository-dispatch.yml   # repository_dispatch demo + smoke test
+README.md                        # adoption docs
+```
+`src/` is a test fixture, not source code for the Action itself — composite Actions have no compiled source. Demo workflows in this repo target `src/sample/` so the end-to-end run is self-contained. Adding a new agent in future = drop a new folder under `action/agents/` with the two scripts; no other file changes required.
 
-### No Direct Default-Branch Pushes
-`branch.sh` always creates a new branch. `open-pr.sh` uses `gh pr create`, which opens a PR — it cannot commit to the base branch. The required `github-token` scopes (`contents: write`, `pull-requests: write`) do not include bypassing branch protection. This is a structural guarantee, not just a policy.
+## Risks / Open Questions
+- **Claude Code in non-interactive Actions runners** — riskiest assumption. Need an early smoke test that the MCP loop, file edits, and process exit all behave correctly on `ubuntu-latest`.
+- **Cross-agent prompt portability** — `build-prompt.sh` currently emits Claude-flavored instructions. Aider/Codex/Gemini may need format tweaks; the agent seam lets each `run.sh` post-process the prompt if needed, but a sufficiently neutral prompt is preferred. Validate when wiring the second agent.
+- **Single `api-key` input** — works for one-provider-per-run. If a future agent ever needs *two* keys (e.g. an Aider config that uses Claude for edits but OpenAI for embedding), revisit the input shape.
+- **Token permissions** — default `GITHUB_TOKEN` is fine for same-repo PRs. Cross-repo dispatch needs an App-minted or PAT token; README must call this out.
+- **Empty-diff runs** — currently fail loudly. Alternative: open a PR with an "investigation notes" body when the agent can't propose a fix. Defer to v2.
+- **Prompt-injection via crash text** — stack traces and device info are untrusted strings. The prompt builder must treat them as data, not instructions.
 
-### Empty Diff = Hard Fail
-`commit.sh` runs `git diff --exit-code HEAD` before staging. If the working tree is clean, the script exits non-zero immediately. This prevents silent no-ops (FR-6) and ensures `pr-url` is only set when real changes exist.
-
-### Composite Action (No Docker)
-Using `runs: using: composite` avoids Docker build time on the runner and keeps the action usable in any GitHub-hosted runner environment without a container registry. The tradeoff is that install.sh steps add latency; this is acceptable for v1 where agent install time dominates anyway.
-
----
-
-## Risk Register
-
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|---|
-| R-1 | Claude Code CLI changes its non-interactive invocation interface between releases | Medium | High | Pin the CLI version in install.sh (`npm install -g @anthropic-ai/claude-code@<version>`); add a CI check that re-runs install against a known version. |
-| R-2 | Agent produces a diff that breaks the target repo's tests | Medium | Medium | Out of scope for v1 (PR is human-reviewed before merge); document that PR CI on the consumer repo is the safety net. |
-| R-3 | `AGENT_API_KEY` leaks into logs via agent CLI debug output | Low | Critical | Wrap run.sh in a GitHub Actions secret masking step; add a log-scan CI job that greps for known key prefixes (`sk-ant-`, `sk-`, etc.) in captured output. |
-| R-4 | Stack trace exceeds GitHub Actions input size limit (~100 KB) | Low | Medium | Truncate stack-trace input to 50 KB in validate.sh with a warning; document the limit in README. |
-| R-5 | `gh` CLI not present or outdated on ubuntu-latest runner | Low | High | Pin `gh` version check in open-pr.sh; ubuntu-latest ships gh by default — add a version assertion in CI. |
-
----
-
-## Testing Strategy
-
-### Unit Tests (shell script mocks)
-- Each script (`validate.sh`, `build-prompt.sh`, `commit.sh`) is tested in isolation using BATS (Bash Automated Testing System).
-- Agent calls are mocked by placing a fake `run.sh` on `$PATH` that writes a canned output file and exits 0.
-- Tests cover: missing required fields → exit 1; empty diff → exit 1; happy path → correct outputs.
-- Run in CI on every PR via `ci.yml`.
-
-### Integration Tests (act local runner)
-- `act` runs the full composite action locally against a throwaway test repository.
-- A mock agent stub simulates a successful edit (appends a comment to a scratch file).
-- Verifies: branch name format, PR body contains all required fields, outputs are set, no push to base-branch.
-- Run locally by developers; optionally gated in CI via a self-hosted runner with `act` installed.
-
-### End-to-End Tests (real workflow_dispatch)
-- A dedicated test repository (`crash-fix-e2e-target`) hosts a simple app with a known crash signature.
-- A `workflow_dispatch` trigger fires the action with a real `ANTHROPIC_API_KEY`.
-- Pass criteria: PR opened on the test repo, branch named correctly, PR body complete, no commit on `main`.
-- Run manually for release candidates; not run on every PR due to cost and latency.
+## Out of Scope
+- Crash-source plumbing (Cloud Function, Crashlytics integration, BigQuery) — separate project.
+- Deduplication across runs — every dispatch produces a fresh PR.
+- Cost guardrails for agent spend — sensible defaults only.
+- Self-hosted runner / Docker Action variants — `ubuntu-latest` GitHub-hosted runners only for v1.
+- **Wiring non-Claude agents in v1** — `aider`/`codex`/`gemini` ship as scaffolded folders with stub scripts only. The seam exists; the implementations are follow-up work.

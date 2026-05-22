@@ -1,0 +1,10 @@
+{
+  "crash_id": "crash-android-ccf-002",
+  "signature": "ClassCastException: java.lang.String cannot be cast to java.util.HashMap",
+  "subtitle": "at com.example.app.UserManager.parseResponse",
+  "app_version": "1.3.0-beta",
+  "stack_trace": "java.lang.ClassCastException: java.lang.String cannot be cast to java.util.HashMap\n  at com.example.app.UserManager.parseResponse(UserManager.java:127)\n  at com.example.app.api.ApiClient$1.onResponse(ApiClient.java:89)\n  at retrofit2.ExecutorCallbackCall$1.run(ExecutorCallbackCall.java:145)\n  at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)\n  at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)\n  at java.lang.Thread.run(Thread.java:919)",
+  "device_info": "Samsung Galaxy S21 | Android 13",
+  "occurrence_count": "87",
+  "create_time": "2026-05-18T14:22:15Z"
+}

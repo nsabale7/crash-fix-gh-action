@@ -1,51 +1,56 @@
-# SP-1 Requirements
+# Requirements — SP-1 Crash Auto-Fix GitHub Action
 
-## Functional Requirements
+## Base Branch
+`main` — branch to fork from and merge back to.
 
-### FR-1 — Crash Payload Ingestion
-The action MUST accept a crash payload via GitHub Actions inputs: `crash-id` (required), `signature` (required), `app-version` (required), `create-time` (required, ISO 8601), `stack-trace` (optional), `subtitle` (optional), `device-info` (optional), and `occurrence-count` (optional). Missing required fields MUST cause the action to fail with a descriptive error before any agent is invoked.
+## Goal
+Ship a reusable GitHub Action that, given a crash payload (signature, stack trace, app version, device info), checks out the target repo, invokes a pluggable coding agent CLI in non-interactive mode to investigate and fix the crash, and opens a pull request with the proposed change. v1 ships **Claude Code** as the wired agent; `aider`, `codex`, and `gemini-cli` are scaffolded behind the same seam for future wiring. The Action is the deliverable — how the crash payload reaches GitHub is out of scope.
 
-### FR-2 — Branch Creation
-The action MUST check out the target repository on a fresh branch named `crash-fix/<signature>-<run-id>` forked from the configured `base-branch` (default: `main`). The branch MUST NOT already exist; if it does, the action MUST fail.
+## Scope
 
-### FR-3 — Agent Invocation (Claude)
-The action MUST invoke the Claude Code CLI non-interactively using the `ANTHROPIC_API_KEY` derived from the `api-key` input. The agent MUST receive the crash context as a structured prompt written to a temp file (`PROMPT_FILE`). Agent output (change summary) MUST be captured to a temp file (`OUTPUT_FILE`). The invocation MUST be non-interactive; any TTY requirement is a hard failure.
+**A reusable Action published from this repo (`action.yml` + supporting scripts):**
 
-### FR-4 — PR Creation
-After the agent run, the action MUST commit the modified files, push the branch, and open a pull request against `base-branch`. The action MUST expose three outputs: `pr-url`, `pr-number`, and `branch`. PR creation MUST use the `github-token` input.
+- **Action contract:** typed inputs covering crash fields (signature, stack trace, app version, device info, occurrence count, …), an `agent` selector (default `claude`), a generic `api-key` secret, and a `base-branch` config. Outputs at minimum the PR URL.
+- **Action body:** checks out the consumer repo on a new branch, dispatches to the selected agent's `install.sh` to set up its CLI, runs the agent's `run.sh` non-interactively with the crash prompt, commits the diff, opens a PR against the consumer's default branch.
+- **Pluggable agent seam:** each agent lives at `action/agents/<name>/{install.sh,run.sh}`. v1 fully wires `claude`; `aider`, `codex`, `gemini` ship as scaffolded folders whose scripts exit "not yet implemented." Adding a new agent later is a self-contained PR with no changes to `action.yml`, the prompt builder, or the PR template.
+- **PR contents:** title and body include the crash signature, full stack trace, app version, the code-change summary, and why the change is believed to fix the crash.
+- **Demo workflows in this repo** (`.github/workflows/`) showing both invocation paths:
+  - `workflow_dispatch` — manual/API invocation with crash fields as inputs (used for testing and for callers that prefer the dispatch API).
+  - `repository_dispatch` — listens for a custom event type and unpacks crash fields from `client_payload` (used by external dispatchers like a Cloud Function or webhook).
+- **README** documenting how a consumer repo adopts the Action: `uses: org/crash-fix-gh-action@v1`, required secrets, input reference, an example workflow for each trigger, and instructions for adding a new agent.
 
-### FR-5 — Multi-Agent Scaffolding
-The action MUST ship stub implementations for `aider`, `codex`, and `gemini` under `action/agents/<name>/install.sh` and `run.sh`. Stubs MUST exit with a non-zero code and print "not implemented" so callers get a clear error. No changes to `action.yml` or the prompt builder are required to add a new agent.
+## Out of Scope
 
-### FR-6 — Empty-Diff Failure
-If the agent produces no file changes (empty diff after the run), the action MUST fail with a clear error message and MUST NOT open a PR. Silent no-ops are prohibited.
-
-### FR-7 — PR Content
-The PR body MUST include: crash signature, stack trace (if provided), app version, create time, device info (if provided), occurrence count (if provided), agent name used, and the agent's change summary from `OUTPUT_FILE`. A structured PR template (`action/pr-template.md`) provides the skeleton.
-
-### FR-8 — Security: No Direct Default-Branch Pushes
-The action MUST NEVER push commits directly to `base-branch`. All changes MUST go through the PR flow. The action MUST NOT require or accept branch-protection bypass tokens. If `base-branch` protection rules block a direct push, this MUST be treated as expected behavior, not a bug.
-
----
-
-## Non-Functional Requirements
-
-### NFR-1 — Reliability
-The action MUST complete successfully (or fail with a clear, actionable error) on `ubuntu-latest` GitHub-hosted runners without manual runner setup. Transient network failures during agent install MUST be retried at least once before failing.
-
-### NFR-2 — Security and Secret Handling
-`api-key` and `github-token` MUST be passed only via GitHub Actions secrets and mapped to environment variables scoped to individual steps. They MUST NOT appear in log output, PR body, commit messages, or any artifact. The action MUST NOT write secrets to disk in plaintext.
-
-### NFR-3 — Extensibility: New Agent = One PR
-Adding a new coding agent MUST require only adding `action/agents/<name>/install.sh` and `run.sh` — no changes to `action.yml`, the prompt builder, or the PR template. The agent selection dispatch MUST be data-driven (directory lookup), not a hardcoded switch.
-
-### NFR-4 — Observability
-Each major step (payload validation, branch creation, agent install, agent run, commit, PR creation) MUST emit a distinct, human-readable GitHub Actions step summary or log line. The action MUST surface the `pr-url` in the step summary on success. On failure, the step that failed and the reason MUST be identifiable from the Actions run log without inspecting runner state.
-
----
+- **Firebase Cloud Function, Crashlytics integration, BigQuery, any crash-source plumbing** — the Action assumes a caller hands it the payload; building that caller is a separate project.
+- **Direct commits to the default branch** — every change must go through a PR (per README "never committed directly to your main branch").
+- **Auto-merge or auto-deploy** — humans always review before merge.
+- **Crash deduplication / batching** — one invocation → one PR. Grouping recurrences is a follow-up.
+- **Non-fatal events / ANRs** — the Action's input schema is shaped around fatal-crash fields for v1.
+- **Retry / dead-letter logic** for failed runs — basic logging only; reliability hardening is a follow-up.
+- **Cost guardrails** (agent spend caps, rate limits) — sensible defaults only.
+- **Self-hosted runners, custom agent containers** — target GitHub-hosted `ubuntu-latest` runners; agents are installed at runtime via their official CLIs.
+- **Wiring non-Claude agents** — `aider`, `codex`, and `gemini` ship as scaffolded folders with stub scripts only. The seam exists; the implementations are follow-up work.
+- **Updates to any target Android app** — this repo ships the Action; consumer repos own their own code.
 
 ## Constraints
 
-- MUST run on `ubuntu-latest` GitHub-hosted runners without custom runner images.
-- MUST use GitHub Actions native constructs (`action.yml`, step outputs, secrets, `GITHUB_TOKEN`) — no external orchestration (Kubernetes, Lambda, etc.) may be required at runtime.
-- Agent CLIs are installed at job runtime; they MUST NOT be pre-baked into a container image for v1.
+- **Action type:** composite Action defined by an `action.yml` at the repo root, consumable via `uses: org/crash-fix-gh-action@<ref>`.
+- **Triggers supported by demo workflows:** `workflow_dispatch` and `repository_dispatch` must both work end-to-end on a test repo.
+- **Agent install:** each agent's CLI is installed at runtime by its `install.sh` (no third-party setup actions). For Claude v1 this is `npm install -g @anthropic-ai/claude-code`.
+- **Secrets:** the Action requires `AGENT_API_KEY` (provider key matching the selected `agent`) and a GitHub token (PAT or App-minted) with permission to open PRs on the consumer repo. Sourced from GitHub Action secrets — never in code or logs.
+- **Selected agent** must run in non-interactive mode within the Action; for Claude v1, the MCP server loop must work in that context (riskiest assumption — smoke-test early).
+- **No production data:** development and tests run against a private test repo only.
+- **Runtime latency** is not a hard SLA for v1 — minutes is acceptable.
+
+## Acceptance Criteria
+
+- [ ] A test repo consuming `uses: org/crash-fix-gh-action@<ref>` with `agent: claude` produces a PR end-to-end when invoked via `workflow_dispatch` with crash inputs.
+- [ ] The same Action produces a PR when invoked via `repository_dispatch` with the crash payload in `client_payload`.
+- [ ] PR title and body contain the crash signature, full stack trace, affected app version, and a human-readable summary of the proposed fix.
+- [ ] The PR's diff is scoped only to files implicated by the stack trace — no shotgun changes across unrelated files.
+- [ ] Nothing is ever pushed directly to the consumer's default branch; every change is a PR.
+- [ ] Action logs include enough context (run id, crash signature, agent, PR url) to debug a failed run.
+- [ ] All secrets are sourced from GitHub Action secrets — no secrets in code or logs.
+- [ ] Repeating the trigger with the same crash signature still produces a new PR — no silent deduplication.
+- [ ] `action/agents/` contains folders for `claude`, `aider`, `codex`, `gemini`. The non-claude folders each contain `install.sh` and `run.sh` that exit non-zero with a "not yet implemented" message; the seam itself is verified by selecting one of those agents and observing a clean failure.
+- [ ] README documents inputs, outputs, required secrets, provides a working example workflow for both `workflow_dispatch` and `repository_dispatch`, and explains how to add a new agent.

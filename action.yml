@@ -1,0 +1,165 @@
+name: Crash Auto-Fix
+description: Composite GitHub Action to auto-fix crashes using Claude Code CLI
+
+inputs:
+  crash-id:
+    description: Unique Crashlytics issue id
+    required: true
+  signature:
+    description: Exception class / crash title
+    required: true
+  subtitle:
+    description: First line of stack trace summary
+    required: false
+  app-version:
+    description: App version at time of crash
+    required: true
+  stack-trace:
+    description: Full stack trace text
+    required: false
+  device-info:
+    description: Device make/model + Android version
+    required: false
+  occurrence-count:
+    description: How many users hit this
+    required: false
+  create-time:
+    description: ISO 8601 timestamp
+    required: true
+  agent:
+    description: Which coding agent to invoke (claude, aider, codex, gemini)
+    required: false
+    default: claude
+  base-branch:
+    description: Branch to fork from / target the PR at
+    required: false
+    default: main
+  api-key:
+    description: Provider API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)
+    required: true
+  github-token:
+    description: GitHub token for pushing branch and opening PR
+    required: true
+
+outputs:
+  pr-url:
+    description: URL of the PR opened
+    value: ${{ steps.open-pr.outputs.pr-url }}
+  pr-number:
+    description: Number of the PR
+    value: ${{ steps.open-pr.outputs.pr-number }}
+  branch:
+    description: Branch name that was created and pushed
+    value: ${{ steps.branch.outputs.branch-name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.base-branch }}
+
+    - name: Create branch
+      id: branch
+      shell: bash
+      run: |
+        set -e
+        SIGNATURE_SLUG=$(echo "${{ inputs.signature }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/-+/-/g')
+        BRANCH_NAME="crash-fix/${SIGNATURE_SLUG}-${{ github.run_id }}"
+        git checkout -b "$BRANCH_NAME" || exit 1
+        echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT || exit 1
+
+    - name: Install agent CLI
+      shell: bash
+      run: bash action/agents/${{ inputs.agent }}/install.sh || exit 1
+
+    - name: Build prompt
+      shell: bash
+      env:
+        CRASH_ID: ${{ inputs.crash-id }}
+        SIGNATURE: ${{ inputs.signature }}
+        SUBTITLE: ${{ inputs.subtitle }}
+        APP_VERSION: ${{ inputs.app-version }}
+        STACK_TRACE: ${{ inputs.stack-trace }}
+        DEVICE_INFO: ${{ inputs.device-info }}
+        OCCURRENCE_COUNT: ${{ inputs.occurrence-count }}
+        CREATE_TIME: ${{ inputs.create-time }}
+      run: bash action/build-prompt.sh || exit 1
+
+    - name: Run agent
+      shell: bash
+      env:
+        AGENT_API_KEY: ${{ inputs.api-key }}
+      run: bash action/agents/${{ inputs.agent }}/run.sh /tmp/crash-fix-prompt.txt /tmp/agent-output.txt || exit 1
+
+    - name: Commit changes
+      shell: bash
+      run: |
+        set -e
+        git config user.email "crash-fix-action@github.com" || exit 1
+        git config user.name "Crash Fix Action" || exit 1
+        if git diff --quiet; then
+          echo "No changes detected. Failing run."
+          exit 1
+        fi
+        git add -A || exit 1
+        git commit -m "Fix crash: ${{ inputs.signature }}" || exit 1
+
+    - name: Push branch
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -e
+        git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git || exit 1
+        git push origin ${{ steps.branch.outputs.branch-name }} || exit 1
+
+    - name: Open PR
+      id: open-pr
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        CRASH_ID: ${{ inputs.crash-id }}
+        SIGNATURE: ${{ inputs.signature }}
+        APP_VERSION: ${{ inputs.app-version }}
+        STACK_TRACE: ${{ inputs.stack-trace }}
+        DEVICE_INFO: ${{ inputs.device-info }}
+        OCCURRENCE_COUNT: ${{ inputs.occurrence-count }}
+        CREATE_TIME: ${{ inputs.create-time }}
+      run: |
+        set -e
+
+        # Read agent output
+        AGENT_OUTPUT=$(cat /tmp/agent-output.txt) || exit 1
+
+        # Create PR body by substituting placeholders in template
+        PR_BODY_FILE="/tmp/pr-body.md"
+        cat action/pr-body-template.md > "$PR_BODY_FILE" || exit 1
+
+        # Use envsubst for safe placeholder substitution (avoids sed delimiter injection)
+        AGENT_OUTPUT="${AGENT_OUTPUT}" \
+        SIGNATURE="${SIGNATURE}" \
+        CRASH_ID="${CRASH_ID}" \
+        APP_VERSION="${APP_VERSION}" \
+        DEVICE_INFO="${DEVICE_INFO}" \
+        STACK_TRACE="${STACK_TRACE}" \
+        OCCURRENCE_COUNT="${OCCURRENCE_COUNT}" \
+        CREATE_TIME="${CREATE_TIME}" \
+        envsubst '${AGENT_OUTPUT},${SIGNATURE},${CRASH_ID},${APP_VERSION},${DEVICE_INFO},${STACK_TRACE},${OCCURRENCE_COUNT},${CREATE_TIME}' < "$PR_BODY_FILE" > "${PR_BODY_FILE}.tmp" || exit 1
+        mv "${PR_BODY_FILE}.tmp" "$PR_BODY_FILE" || exit 1
+
+        # Create PR and capture output
+        PR_OUTPUT=$(gh pr create --title "Fix crash: ${SIGNATURE}" --body-file "$PR_BODY_FILE" --base "${{ inputs.base-branch }}" 2>&1) || exit 1
+
+        # Extract PR URL and number
+        PR_URL=$(echo "$PR_OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' || echo "")
+        PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$' || echo "")
+
+        if [ -z "$PR_URL" ] || [ -z "$PR_NUMBER" ]; then
+          echo "ERROR: Failed to extract PR URL or number from: $PR_OUTPUT"
+          exit 1
+        fi
+
+        echo "pr-url=$PR_URL" >> $GITHUB_OUTPUT || exit 1
+        echo "pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT || exit 1

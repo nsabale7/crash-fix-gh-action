@@ -1,0 +1,55 @@
+---
+name: CI
+
+'on':
+  push:
+    branches:
+      - main
+      - sprint/**
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install -g bats
+
+      - name: Secret masking configuration
+        run: |
+          echo "::add-mask::${ANTHROPIC_API_KEY}"
+          echo "::add-mask::${AGENT_API_KEY}"
+          echo "Secrets masked in logs"
+
+      - name: Lint workflows (actionlint)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          ./actionlint || exit 1
+          echo "Workflow linting passed"
+
+      - name: Run test suite
+        run: |
+          bash test/test-input-handling.sh && \
+          bash test/test-task3-workflow.sh && \
+          bash test/test-integration-workflows.sh && \
+          bash test/test-agents.sh
+        continue-on-error: false
+
+      - name: Log scan for secret leakage
+        run: |
+          if grep -r -E "sk-ant-|sk-|ghp_" /tmp/*.txt 2>/dev/null; then
+            echo "ERROR: Secrets detected in logs!"
+            exit 1
+          else
+            echo "Log scan passed - no secrets found"
+          fi
+        continue-on-error: false
