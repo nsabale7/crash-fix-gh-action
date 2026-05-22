@@ -33,7 +33,7 @@ jobs:
       - name: Lint workflows (actionlint)
         run: |
           curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
-          ./actionlint .github/workflows/ || exit 1
+          ./actionlint || exit 1
           echo "Workflow linting passed"
 
       - name: Run test suite
