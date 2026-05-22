@@ -39,9 +39,10 @@ runs it with no-args (auto-discovers `.github/workflows/`):
     echo "Workflow linting passed"
 ```
 
-Two-step fix applied in this review:
+Three-step fix applied across this review cycle:
 - Commit eae660e: replaced `apt-get install actionlint` with curl download script (correct install method)
-- This review: changed `./actionlint .github/workflows/` to `./actionlint` (no-args invocation auto-discovers workflows; passing a directory path caused an error)
+- Commit e969074: changed `./actionlint .github/workflows/` to `./actionlint` (no-args invocation; directory path caused exit 1)
+- Commit b965f56: upgraded `actions/setup-node@v3` → `@v4` to fix actionlint [action] rule violation
 
 ---
 
@@ -62,7 +63,8 @@ works correctly. Not a code defect; CI will validate this suite.
 
 ## CI Status
 
-✅ CI passing after this review's fix to actionlint invocation.
+✅ CI PASSING — runs 26275180164 (push) and 26275182305 (pull_request) both green.
+All steps pass: actionlint, BATS tests, secret masking, log scan.
 
 ---
 
@@ -72,7 +74,7 @@ works correctly. Not a code defect; CI will validate this suite.
 |---|-------|--------|
 | B1 | PR body missing CREATE_TIME, OCCURRENCE_COUNT | ✅ Fixed (commit d76e137) |
 | B2 | sed delimiter injection | ✅ Fixed (commit d76e137) |
-| B3 | actionlint not in CI | ✅ Fixed (commit eae660e + this review) |
+| B3 | actionlint not in CI | ✅ Fixed (commits eae660e + e969074 + b965f56) |
 | M1 | base-branch unquoted in gh pr create | ✅ Fixed (commit d76e137) |
 | M2 | Secret masking after tests | ✅ Fixed (commit d76e137) |
 | M3 | aider run.sh swallows failures | Not addressed (non-blocking, v1.1) |
