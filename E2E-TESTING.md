@@ -122,7 +122,7 @@ EOF
 2. Click "Run workflow" button
 3. Fill in the form:
    - **crash-id**: `test-npe-001`
-   - **crash-signature**: `NullPointerException in MainActivity.processUserData`
+   - **signature**: `NullPointerException in MainActivity.processUserData`
    - **app-version**: `1.0.0`
    - **stack-trace**: (paste full stack trace, or use example below)
    - **device-info**: `Pixel 5, Android 12`
@@ -134,7 +134,7 @@ EOF
 gh workflow run crash-auto-fix-manual.yml \
   --repo owner/crash-fix-e2e-target \
   -f crash-id=test-npe-001 \
-  -f crash-signature="NullPointerException in MainActivity.processUserData" \
+  -f signature="NullPointerException in MainActivity.processUserData" \
   -f app-version="1.0.0" \
   -f stack-trace="$(cat sample-crash-stack.txt)" \
   -f device-info="Pixel 5, Android 12" \
@@ -150,7 +150,7 @@ curl -X POST https://api.github.com/repos/owner/crash-fix-e2e-target/actions/wor
     "ref": "main",
     "inputs": {
       "crash-id": "test-npe-001",
-      "crash-signature": "NullPointerException in MainActivity.processUserData",
+      "signature": "NullPointerException in MainActivity.processUserData",
       "app-version": "1.0.0",
       "stack-trace": "java.lang.NullPointerException\n  at com.example.app.MainActivity.processUserData(MainActivity.java:42)",
       "device-info": "Pixel 5, Android 12",
@@ -165,7 +165,7 @@ curl -X POST https://api.github.com/repos/owner/crash-fix-e2e-target/actions/wor
 ```bash
 gh api repos/owner/crash-fix-e2e-target/dispatches \
   -f event_type=crash-detected \
-  -f client_payload='{"crash_id":"test-npe-002","crash_signature":"NullPointerException in MainActivity.processUserData","app_version":"1.0.0","stack_trace":"java.lang.NullPointerException\n  at com.example.app.MainActivity.processUserData(MainActivity.java:42)","device_info":"Pixel 5, Android 12"}'
+  -f client_payload='{"crash_id":"test-npe-002","signature":"NullPointerException in MainActivity.processUserData","app_version":"1.0.0","stack_trace":"java.lang.NullPointerException\n  at com.example.app.MainActivity.processUserData(MainActivity.java:42)","device_info":"Pixel 5, Android 12"}'
 ```
 
 **Via curl (requires GITHUB_TOKEN):**
@@ -177,7 +177,7 @@ curl -X POST https://api.github.com/repos/owner/crash-fix-e2e-target/dispatches 
     "event_type": "crash-detected",
     "client_payload": {
       "crash_id": "test-npe-002",
-      "crash_signature": "NullPointerException in MainActivity.processUserData",
+      "signature": "NullPointerException in MainActivity.processUserData",
       "app_version": "1.0.0",
       "stack_trace": "java.lang.NullPointerException\n  at com.example.app.MainActivity.processUserData(MainActivity.java:42)",
       "device_info": "Pixel 5, Android 12"
@@ -325,7 +325,7 @@ cd crash-fix-e2e-target && git add . && git commit -m "Add crash-fix workflows" 
 gh workflow run crash-auto-fix-manual.yml \
   --repo owner/crash-fix-e2e-target \
   -f crash-id=test-001 \
-  -f crash-signature="NullPointerException in MainActivity.onCreate" \
+  -f signature="NullPointerException in MainActivity.onCreate" \
   -f app-version="1.0.0" \
   -f stack-trace="java.lang.NullPointerException\n  at com.example.MainActivity.onCreate(MainActivity.java:42)" \
   -f agent="claude"

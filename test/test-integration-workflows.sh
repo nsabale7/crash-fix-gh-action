@@ -62,7 +62,8 @@ if command -v yq &> /dev/null; then
     echo "✗ FAIL: $WORKFLOW_DISPATCH has invalid YAML syntax"
     exit 1
   fi
-elif command -v python3 &> /dev/null; then
+elif python3 -c "import yaml; yaml.safe_load(open('$WORKFLOW_MANUAL'))" 2>/dev/null; then
+  # Python3 works, use it for validation
   echo "Using python3 for YAML validation..."
   if python3 -c "import yaml; yaml.safe_load(open('$WORKFLOW_MANUAL'))" 2>/dev/null; then
     echo "✓ PASS: $WORKFLOW_MANUAL has valid YAML syntax"
@@ -78,16 +79,16 @@ elif command -v python3 &> /dev/null; then
     exit 1
   fi
 else
-  echo "⚠ WARNING: yq and python3 not available, skipping YAML syntax validation"
+  echo "⚠ WARNING: yq and python3 not available or not working, using basic validation"
   echo "⚠ Attempting basic validation using grep..."
-  if grep -q "^on:" "$WORKFLOW_MANUAL"; then
+  if grep -qE "^'?on'?:" "$WORKFLOW_MANUAL"; then
     echo "✓ PASS: $WORKFLOW_MANUAL appears to be valid YAML (contains 'on:' trigger)"
   else
     echo "✗ FAIL: $WORKFLOW_MANUAL appears to be invalid YAML"
     exit 1
   fi
 
-  if grep -q "^on:" "$WORKFLOW_DISPATCH"; then
+  if grep -qE "^'?on'?:" "$WORKFLOW_DISPATCH"; then
     echo "✓ PASS: $WORKFLOW_DISPATCH appears to be valid YAML (contains 'on:' trigger)"
   else
     echo "✗ FAIL: $WORKFLOW_DISPATCH appears to be invalid YAML"

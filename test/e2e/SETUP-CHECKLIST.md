@@ -355,7 +355,7 @@ Once setup is complete, run your first E2E test:
 4. Click **Run workflow** button
 5. Fill in form:
    - **crash-id**: `test-001`
-   - **crash-signature**: `NullPointerException in CrashSample.processData`
+   - **signature**: `NullPointerException in CrashSample.processData`
    - **app-version**: `1.0.0`
    - **stack-trace**: `java.lang.NullPointerException\n  at com.example.crash.CrashSample.processData(CrashSample.java:11)`
    - **agent**: `claude`
@@ -366,7 +366,7 @@ Once setup is complete, run your first E2E test:
 gh workflow run crash-auto-fix-manual.yml \
   --repo owner/crash-fix-e2e-target \
   -f crash-id="test-001" \
-  -f crash-signature="NullPointerException in CrashSample.processData" \
+  -f signature="NullPointerException in CrashSample.processData" \
   -f app-version="1.0.0" \
   -f stack-trace="java.lang.NullPointerException
   at com.example.crash.CrashSample.processData(CrashSample.java:11)" \
@@ -378,7 +378,7 @@ gh workflow run crash-auto-fix-manual.yml \
 ```bash
 gh api repos/owner/crash-fix-e2e-target/dispatches \
   -f event_type=crash-detected \
-  -f client_payload='{"crash_id":"test-002","crash_signature":"NullPointerException in CrashSample.processData","app_version":"1.0.0","stack_trace":"java.lang.NullPointerException\n  at com.example.crash.CrashSample.processData(CrashSample.java:11)"}'
+  -f client_payload='{"crash_id":"test-002","signature":"NullPointerException in CrashSample.processData","app_version":"1.0.0","stack_trace":"java.lang.NullPointerException\n  at com.example.crash.CrashSample.processData(CrashSample.java:11)"}'
 ```
 
 ### Monitor Workflow Execution
