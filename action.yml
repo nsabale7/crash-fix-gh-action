@@ -55,6 +55,27 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Validate required inputs
+      shell: bash
+      run: |
+        set -e
+        MISSING_INPUTS=()
+        [ -z "${{ inputs.crash-id }}" ] && MISSING_INPUTS+=("crash-id")
+        [ -z "${{ inputs.signature }}" ] && MISSING_INPUTS+=("signature")
+        [ -z "${{ inputs.app-version }}" ] && MISSING_INPUTS+=("app-version")
+        [ -z "${{ inputs.create-time }}" ] && MISSING_INPUTS+=("create-time")
+        [ -z "${{ inputs.api-key }}" ] && MISSING_INPUTS+=("api-key")
+        [ -z "${{ inputs.github-token }}" ] && MISSING_INPUTS+=("github-token")
+
+        if [ ${#MISSING_INPUTS[@]} -gt 0 ]; then
+          echo "ERROR: Missing required inputs:" >&2
+          for input in "${MISSING_INPUTS[@]}"; do
+            echo "  - $input" >&2
+          done
+          exit 1
+        fi
+        echo "✓ All required inputs provided"
+
     - name: Checkout
       uses: actions/checkout@v4
       with:
