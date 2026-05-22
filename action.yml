@@ -72,7 +72,7 @@ runs:
 
     - name: Install agent CLI
       shell: bash
-      run: bash action/agents/${{ inputs.agent }}/install.sh || exit 1
+      run: bash ${{ github.action_path }}/action/agents/${{ inputs.agent }}/install.sh || exit 1
 
     - name: Build prompt
       shell: bash
@@ -85,13 +85,13 @@ runs:
         DEVICE_INFO: ${{ inputs.device-info }}
         OCCURRENCE_COUNT: ${{ inputs.occurrence-count }}
         CREATE_TIME: ${{ inputs.create-time }}
-      run: bash action/build-prompt.sh || exit 1
+      run: bash ${{ github.action_path }}/action/build-prompt.sh || exit 1
 
     - name: Run agent
       shell: bash
       env:
         AGENT_API_KEY: ${{ inputs.api-key }}
-      run: bash action/agents/${{ inputs.agent }}/run.sh /tmp/crash-fix-prompt.txt /tmp/agent-output.txt || exit 1
+      run: bash ${{ github.action_path }}/action/agents/${{ inputs.agent }}/run.sh /tmp/crash-fix-prompt.txt /tmp/agent-output.txt || exit 1
 
     - name: Commit changes
       shell: bash
@@ -135,7 +135,7 @@ runs:
 
         # Create PR body by substituting placeholders in template
         PR_BODY_FILE="/tmp/pr-body.md"
-        cat action/pr-body-template.md > "$PR_BODY_FILE" || exit 1
+        cat ${{ github.action_path }}/action/pr-body-template.md > "$PR_BODY_FILE" || exit 1
 
         # Use envsubst for safe placeholder substitution (avoids sed delimiter injection)
         AGENT_OUTPUT="${AGENT_OUTPUT}" \
