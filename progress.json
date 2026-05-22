@@ -151,6 +151,15 @@
       "tier": "standard",
       "commit": "baebda3",
       "notes": "Fixed CI test failures discovered in PR #1. Issue: Agent scripts (aider, codex, gemini install.sh/run.sh) lacked execute permissions in git, and Claude agent run.sh had insufficient error handling. Solution: (1) Made all 8 agent scripts executable via 'git update-index --chmod=+x', marking them as 100755 in git index. (2) Updated Claude run.sh to use default file paths (/tmp/crash-fix-prompt.txt, /tmp/crash-fix-output.txt) and check prompt file existence before proceeding. Result: All 37+ test suite tests now pass (27 passed in agent tests alone, down from 17 passed with 10 failed). CI workflow now fully green. PR #1 ready for review and merge."
+    },
+    {
+      "id": 18,
+      "step": "BUGFIX: Code Review Blockers — PR Body Fields, sed Injection, actionlint",
+      "type": "bugfix",
+      "status": "completed",
+      "tier": "standard",
+      "commit": "d76e137",
+      "notes": "Fixed 3 blocker issues identified in code review. (1) PR Body Missing Fields: Added {{CREATE_TIME}} and {{OCCURRENCE_COUNT}} placeholders to pr-body-template.md and Open PR step env/substitution in action.yml. (2) sed Delimiter Injection: Replaced unsafe sed commands with envsubst for safe placeholder substitution (avoids shell injection when agent output contains pipes, brackets, etc.). (3) Missing actionlint: Replaced yamllint with actionlint in CI workflow for GitHub Actions semantic validation (catches expression errors, invalid input types, unquoted variables). Also: Quoted {{inputs.base-branch}} in gh pr create command, moved secret masking step before tests for defense-in-depth. All 3 blockers resolved. CI and tests verified passing. PR ready for follow-up reviewer validation."
     }
   ]
 }
