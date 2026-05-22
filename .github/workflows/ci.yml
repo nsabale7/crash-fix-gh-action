@@ -32,8 +32,8 @@ jobs:
 
       - name: Lint workflows (actionlint)
         run: |
-          sudo apt-get update && sudo apt-get install -y actionlint
-          actionlint .github/workflows/ || exit 1
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          ./actionlint .github/workflows/ || exit 1
           echo "Workflow linting passed"
 
       - name: Run test suite
