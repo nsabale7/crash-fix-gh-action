@@ -8,6 +8,8 @@ if [ ! -f "$AGENT_OUTPUT" ]; then
   exit 1
 fi
 
+echo "Processing agent output from: $AGENT_OUTPUT"
+
 echo "Scanning for code changes in agent output..."
 
 TEMP_DIR=$(mktemp -d)
